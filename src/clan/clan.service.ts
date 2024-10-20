@@ -84,6 +84,7 @@ export class ClanService {
         timeJoin: new Date(),
         score: 0,
       };
+      owner.markModified('meta');
       await owner.save();
       const { pwd_h, ...res_u } = owner.toObject();
       this.socketGateway.server.emit('clan.update', { ...clan.toObject() });
@@ -122,6 +123,10 @@ export class ClanService {
         throw new Error('Bạn không phải là chủ bang hội');
 
       let { description } = payload.data;
+      clan.meta = {
+        ...(clan.meta ?? {}),
+        description: description,
+      };
       clan.meta.description = description;
 
       if (payload.data.type && payload.data.type !== clan.meta.type) {
@@ -129,10 +134,15 @@ export class ClanService {
         if (owner.money - price[index_price] <= 0)
           throw new Error('Bạn không đủ số dư để đổi biểu tượng Bang Hội');
         owner.money -= price[index_price];
+        owner.markModified('meta');
         await owner.save();
-        clan.meta.type = payload.data.type;
+        clan.meta = {
+          ...(clan.meta ?? {}),
+          type: payload.data.type,
+        };
       }
 
+      clan.markModified('meta');
       await clan.save();
       const { pwd_h, ...res_u } = owner.toObject();
       this.socketGateway.server.emit('clan.update', { ...clan.toObject() });
@@ -167,6 +177,7 @@ export class ClanService {
         throw new Error('Thành viên bang hội của bạn đã đạt tối đa');
 
       clan.member += 1;
+      clan.markModified('meta');
       await clan.save();
 
       member.meta = {
@@ -175,6 +186,7 @@ export class ClanService {
         timeJoin: new Date(),
       };
 
+      member.markModified('meta');
       await member.save();
       const { pwd_h, ...res_u } = member.toObject();
 
@@ -201,24 +213,25 @@ export class ClanService {
       // Update clan;
       const clan = await this.clanModel.findById(payload.clanId);
 
-      let { clanId = null } = member.meta;
-      if (!clanId) throw new Error('Người dùng không ở trong một Bang hội');
+      if (!member.meta.clanId)
+        throw new Error('Người dùng không ở trong một Bang hội');
 
-      if (clanId !== payload.clanId)
+      if (member.meta.clanId !== payload.clanId)
         throw new Error('Người dùng không ở trong Bang Hội này');
 
       // Delete score
       clan.score -= member.meta.score;
       // Delete info member in the clan
-      delete member.meta.clan;
-      delete member.meta.timeJoin;
-      delete member.meta.score;
+      let { clanId, timeJoin, score, ...meta } = member.meta;
+      member.meta = meta;
 
       clan.member -= 1;
 
       // save clan
+      clan.markModified('meta');
       await clan.save();
       // save member;
+      member.markModified('meta');
       await member.save();
       const { pwd_h, ...res_u } = member.toObject();
 
@@ -261,6 +274,8 @@ export class ClanService {
         delete member.meta.clanId;
         delete member.meta.timeJoin;
         delete member.meta.score;
+
+        member.markModified('meta');
         await member.save();
         const { pwd_h, ...res_u } = member.toObject();
         members_res.push(res_u);
@@ -305,8 +320,11 @@ export class ClanService {
       clan.ownerId = n_owner.id;
 
       // save all
+      owner.markModified('meta');
       await owner.save();
+      n_owner.markModified('meta');
       await n_owner.save();
+      clan.markModified('meta');
       await clan.save();
       // Send Update;
       const members = [owner.toObject(), n_owner.toObject()].map((m) => {
@@ -397,10 +415,12 @@ export class ClanService {
         timeJoin: new Date(),
         score: 0,
       };
+      member.markModified('meta');
       await member.save();
 
       // save data clan
       clan.member += 1;
+      clan.markModified('meta');
       await clan.save();
 
       // delete initve

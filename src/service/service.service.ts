@@ -41,6 +41,7 @@ export class ServiceService {
         );
       const user = await this.userService.findUserOption({ _id: uid });
       if (!user) throw new Error('Người dùng không tồn tại!');
+      const { money, meta } = user;
       // Check limited;
       if (['0', '1'].includes(type)) {
         let { limitTrade } = user.meta;
@@ -73,9 +74,13 @@ export class ServiceService {
           );
         if (user.money - withdraw_rgold <= 1)
           throw new Error('Số dư của bạn không khả dụng');
-        user.money -= withdraw_rgold;
-        user.meta.limitTrade -= withdraw_rgold;
-        user.meta.trade += withdraw_rgold;
+        // Update the user fields
+        user.money = money - withdraw_rgold;
+        user.meta = {
+          ...meta, // Spread the existing meta object
+          limitTrade: meta.limitTrade - withdraw_rgold,
+          trade: meta.trade + withdraw_rgold,
+        };
         // Let create active;
         await this.userService.createUserActive({
           uid: uid,
@@ -100,9 +105,12 @@ export class ServiceService {
           );
         if (user.money - withdraw_gold <= 1)
           throw new Error('Số dư của bạn không khả dụng');
-        user.money -= withdraw_gold;
-        user.meta.limitTrade -= withdraw_gold;
-        user.meta.trade += withdraw_gold;
+        user.money = money - withdraw_gold;
+        user.meta = {
+          ...meta, // Spread the existing meta object
+          limitTrade: meta.limitTrade - withdraw_gold,
+          trade: meta.trade + withdraw_gold,
+        };
         // Let create active;
         await this.userService.createUserActive({
           uid: uid,
@@ -128,6 +136,8 @@ export class ServiceService {
       }
 
       // Let save user;
+      // Mark meta as modified if needed (for Mongoose)
+      user.markModified('meta');
       await user.save();
       const { pwd_h, ...res_user } = user.toObject();
 
@@ -183,6 +193,7 @@ export class ServiceService {
         throw new Error('Người dùng không tồn tại');
 
       if (target_s.isEnd) throw new Error('Giao dịch đã kết thúc');
+      const { money, meta } = target_u;
 
       // Cancel Service;
       target_s.isEnd = true;
@@ -204,9 +215,12 @@ export class ServiceService {
           },
         });
 
-        target_u.money += refund_rgold;
-        target_u.meta.limitTrade += refund_rgold;
-        target_u.meta.trade -= refund_rgold;
+        target_u.money = money + refund_rgold;
+        target_u.meta = {
+          ...meta, // Spread the existing meta object
+          limitTrade: meta.limitTrade + refund_rgold,
+          trade: meta.trade - refund_rgold,
+        };
         target_s.revice = refund_rgold;
       }
 
@@ -224,9 +238,12 @@ export class ServiceService {
           },
         });
 
-        target_u.money += refund_gold;
-        target_u.meta.limitTrade += refund_gold;
-        target_u.meta.trade -= refund_gold;
+        target_u.money = money + refund_gold;
+        target_u.meta = {
+          ...meta, // Spread the existing meta object
+          limitTrade: meta.limitTrade + refund_gold,
+          trade: meta.trade - refund_gold,
+        };
         target_s.revice = refund_gold;
       }
 
@@ -244,6 +261,8 @@ export class ServiceService {
       }
 
       // Save user;
+      // Mark meta as modified if needed (for Mongoose)
+      target_u.markModified('meta');
       await target_u.save();
       const { pwd_h, ...res_user } = target_u.toObject();
 
@@ -281,6 +300,7 @@ export class ServiceService {
       if (!target_u) throw new Error('Người dùng không tồn tại');
 
       if (target_s.isEnd) throw new Error('Giao dịch đã kết thúc');
+      const { money, meta } = target_u;
       // Cancel Auto Service
       this.removeCancel(serviceId);
 
@@ -292,7 +312,7 @@ export class ServiceService {
       const { type, amount } = target_s;
       // / Rgold
       if (type === '0') {
-        let refund_rgold = amount * 37e6;
+        let refund_rgold = amount * 1e6 * 37;
         // Save active
         await this.userService.createUserActive({
           uid,
@@ -304,9 +324,12 @@ export class ServiceService {
           },
         });
 
-        target_u.money += refund_rgold;
-        target_u.meta.limitTrade += refund_rgold;
-        target_u.meta.trade -= refund_rgold;
+        target_u.money = money + refund_rgold;
+        target_u.meta = {
+          ...meta, // Spread the existing meta object
+          limitTrade: meta.limitTrade + refund_rgold,
+          trade: meta.trade - refund_rgold,
+        };
         target_s.revice = refund_rgold;
       }
 
@@ -324,9 +347,12 @@ export class ServiceService {
           },
         });
 
-        target_u.money += refund_gold;
-        target_u.meta.limitTrade += refund_gold;
-        target_u.meta.trade -= refund_gold;
+        target_u.money = money + refund_gold;
+        target_u.meta = {
+          ...meta, // Spread the existing meta object
+          limitTrade: meta.limitTrade + refund_gold,
+          trade: meta.trade - refund_gold,
+        };
         target_s.revice = refund_gold;
       }
 
@@ -344,6 +370,8 @@ export class ServiceService {
       }
 
       // Save user;
+      // Mark meta as modified if needed (for Mongoose)
+      target_u.markModified('meta');
       await target_u.save();
       const { pwd_h, ...res_user } = target_u.toObject();
 

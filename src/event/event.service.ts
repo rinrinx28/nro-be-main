@@ -193,7 +193,8 @@ export class EventService {
     try {
       const e_bet = await this.userService.findConfigWithName('e_bet');
       if (!e_bet) throw new Error('Không tìm thấy cài đặt');
-      e_bet.option.enable = false;
+      e_bet.option.enable24 = false;
+      e_bet.markModified('option.enable24');
       await e_bet.save();
       this.logger.log('Auto Turn Off Minigame 24');
       this.MessageModel.create({
@@ -212,7 +213,8 @@ export class EventService {
     try {
       const e_bet = await this.userService.findConfigWithName('e_bet');
       if (!e_bet) throw new Error('Không tìm thấy cài đặt');
-      e_bet.option.enable = true;
+      e_bet.option.enable24 = true;
+      e_bet.markModified('option.enable24');
       await e_bet.save();
       this.logger.log('Auto Turn On Minigame 24');
       this.MessageModel.create({
@@ -297,6 +299,7 @@ export class EventService {
 
         // Reset Score Clan
         clan.score = 0;
+        clan.markModified('meta');
         await clan.save();
       }
 
@@ -349,6 +352,7 @@ export class EventService {
         });
 
         u.money += prize;
+        u.markModified('meta');
         await u.save();
       });
 

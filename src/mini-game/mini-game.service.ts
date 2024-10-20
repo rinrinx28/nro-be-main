@@ -147,6 +147,7 @@ export class MiniGameService {
       });
       // Let minus money of user;
       user.money -= amount;
+      user.markModified('meta');
       await user.save();
       const { pwd_h, ...res_u } = user.toObject();
       // Create userBet
@@ -173,6 +174,7 @@ export class MiniGameService {
         x: x + split_place.x,
       };
 
+      a_game.markModified('meta');
       await a_game.save();
       // TODO Send to sv for reSend all client
       this.socketClientService.sendMessageToServer(
@@ -228,6 +230,7 @@ export class MiniGameService {
       userBet.status = 1;
       userBet.revice = userBet.amount;
       userBet.result = '';
+      userBet.markModified('meta');
       await userBet.save();
 
       //   refund money to user;
@@ -243,6 +246,7 @@ export class MiniGameService {
       });
 
       user.money += refund_money;
+      user.markModified('meta');
       await user.save();
       const { pwd_h, ...res_u } = user.toObject();
 
@@ -260,6 +264,7 @@ export class MiniGameService {
         x: x - split_place.x,
       };
 
+      a_game.markModified('meta');
       await a_game.save();
       // TODO Send to sv for reSend all client
       this.socketClientService.sendMessageToServer(
