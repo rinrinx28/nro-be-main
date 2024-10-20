@@ -39,11 +39,11 @@ export class MiniGameService {
 
       // Query Config Bet SV:
       let index_sv = ['1', '2', '3', '4', '5', '6', '7'].includes(server)
-        ? Number(server) - 1
+        ? parseInt(server, 10) - 1
         : server === '8'
           ? 7
           : ['11', '12', '13'].includes(server)
-            ? Number(server) - 3
+            ? parseInt(server, 10) - 3
             : 24;
       if (index_sv < 24) {
         if (!enable[index_sv])
