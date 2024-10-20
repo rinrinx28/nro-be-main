@@ -7,7 +7,12 @@ async function bootstrap() {
   const port = 3037;
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3035'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3035',
+      'http://localhost:3036',
+      'https://beta.nrogame.me',
+    ],
   });
   // Enable global validation pipe
   app.useGlobalPipes(new ValidationPipe());

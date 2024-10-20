@@ -13,7 +13,12 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @WebSocketGateway({
   cors: {
-    origin: ['http://localhost:3036'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3035',
+      'http://localhost:3036',
+      'https://beta.nrogame.me',
+    ],
   },
 })
 export class SocketGateway
