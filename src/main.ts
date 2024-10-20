@@ -12,6 +12,8 @@ async function bootstrap() {
       'http://localhost:3035',
       'http://localhost:3036',
       'https://beta.nrogame.me',
+      'https://www.nrogame.me',
+      'https://nrogame.me',
     ],
   });
   // Enable global validation pipe
