@@ -21,6 +21,12 @@ export class ServiceService {
   async handlerCreate(payload: CreateService) {
     const { amount, playerName, type, uid, server } = payload;
     try {
+      const e_shop = await this.userService.findConfigWithName('e_shop');
+      if (!e_shop) throw new Error('Không tìm thấy cài đặt e_shop');
+      if (!e_shop.isEnable)
+        throw new Error(
+          'Hệ thống nạp/rút hiện đang bảo trì, xin vui lòng thử lại sau, nếu bạn có đơn chưa hoàn thành, xin vui lòng hoàn thành đơn giao dịch trước đó!',
+        );
       // Let Check old service isEnd?
       const old_s = await this.serviceModel
         .findOne({ playerName: playerName, uid: uid })
