@@ -27,6 +27,7 @@ export class MiniGameService {
       // Check Minigame is avaible
       const e_bet = await this.userService.findConfigWithName('e_bet');
       const option = e_bet.option;
+      const { timePause24, enable24, timePause, enable } = option;
       const a_game = await this.miniGameModel.findById(betId);
       if (!a_game) throw new Error('Mã phiên BET không tồn tại');
       if (a_game.isEnd) throw new Error('Phiên BET đã kết thúc');
@@ -34,8 +35,30 @@ export class MiniGameService {
       // Query TimePause BET
       let timeEnd = moment(`${a_game.timeEnd}`).unix();
       let current_time = moment().unix();
-      if (timeEnd - current_time < option['timePause'])
-        throw new Error('Phiên BET đã đóng cược');
+
+      // Query Config Bet SV:
+      let index_sv = ['1', '2', '3', '4', '5', '6', '7'].includes(server)
+        ? Number(server) - 1
+        : server === '8'
+          ? 7
+          : ['11', '12', '13'].includes(server)
+            ? Number(server) - 3
+            : 24;
+      if (index_sv < 24) {
+        if (!enable[index_sv])
+          throw new Error(
+            `Máy Chủ ${server}: Đang bảo trì, xin vui lòng về máy chủ 24`,
+          );
+        if (timeEnd - current_time < timePause[index_sv])
+          throw new Error('Phiên BET đã đóng cược');
+      } else {
+        if (!enable24)
+          throw new Error(
+            `Máy Chủ ${server}: Đang bảo trì, xin vui lòng về các máy chủ khác`,
+          );
+        if (timeEnd - current_time < timePause24)
+          throw new Error('Phiên BET đã đóng cược');
+      }
 
       const user = await this.userService.findUserOption({ _id: uid });
       if (!user) throw new Error('Người dùng không tồn tại');

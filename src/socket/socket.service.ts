@@ -15,7 +15,7 @@ export class SocketClientService implements OnModuleInit, OnModuleDestroy {
 
   connectToServer() {
     // Replace with the correct URL of your server
-    this.socket = io(process.env.URI_SOCKET);
+    this.socket = io(process.env.URI_SOCKET2);
 
     // Manually connect to the server
     this.socket.connect();
@@ -46,6 +46,10 @@ export class SocketClientService implements OnModuleInit, OnModuleDestroy {
     // Listen for messages from the server
     this.socket.on('service.update', (data: any) => {
       this.eventEmit.emitAsync('service.update', data);
+    });
+    // Listen for messages from the server
+    this.socket.on('clan.update.bulk', (data: any) => {
+      this.eventEmit.emitAsync('clan.update.bulk', data);
     });
 
     // Handle disconnection

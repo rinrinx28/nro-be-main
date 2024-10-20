@@ -14,6 +14,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SocketClientModule } from './socket/socket.module';
 import { EventModule } from './event/event.module';
 import { NoCallModule } from './no-call/no-call.module';
+import { TaskServiceService } from './task-service/task-service.service';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { NoCallModule } from './no-call/no-call.module';
     }),
     MongooseModule.forRoot(process.env.URI_DATABASE),
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     BotModule,
     ServiceModule,
     UserModule,
@@ -35,6 +38,6 @@ import { NoCallModule } from './no-call/no-call.module';
     NoCallModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, TaskServiceService],
 })
 export class AppModule {}

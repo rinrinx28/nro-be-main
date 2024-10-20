@@ -16,6 +16,7 @@ export class ServiceService {
   ) {}
 
   private logger: Logger = new Logger('Service');
+  private mapService: Map<string, any> = new Map();
 
   async handlerCreate(payload: CreateService) {
     const { amount, playerName, type, uid, server } = payload;
@@ -30,6 +31,24 @@ export class ServiceService {
         );
       const user = await this.userService.findUserOption({ _id: uid });
       if (!user) throw new Error('Người dùng không tồn tại!');
+      // Check limited;
+      if (['0', '1'].includes(type)) {
+        let { limitTrade } = user.meta;
+        if (type === '0') {
+          let withdraw_rgold = amount * 37e6;
+          if (withdraw_rgold > limitTrade)
+            throw new Error(
+              'Bạn không thể rút quá hạn mức hôm nay, xin vui lòng tham gia Minigame để tăng điểm',
+            );
+        }
+        if (type === '1') {
+          let withdraw_gold = amount;
+          if (withdraw_gold > limitTrade)
+            throw new Error(
+              'Bạn không thể rút quá hạn mức hôm nay, xin vui lòng tham gia Minigame để tăng điểm',
+            );
+        }
+      }
       // Check Service Withdraw
       // Let minus money user with withdraw rgold
       if (type === '0') {
@@ -37,6 +56,8 @@ export class ServiceService {
         if (user.money - withdraw_rgold <= 1)
           throw new Error('Số dư của bạn không khả dụng');
         user.money -= withdraw_rgold;
+        user.meta.limitTrade -= withdraw_rgold;
+        user.meta.trade += withdraw_rgold;
         // Let create active;
         await this.userService.createUserActive({
           uid: uid,
@@ -54,6 +75,8 @@ export class ServiceService {
         if (user.money - withdraw_gold <= 1)
           throw new Error('Số dư của bạn không khả dụng');
         user.money -= withdraw_gold;
+        user.meta.limitTrade -= withdraw_gold;
+        user.meta.trade += withdraw_gold;
         // Let create active;
         await this.userService.createUserActive({
           uid: uid,
@@ -92,12 +115,18 @@ export class ServiceService {
         server,
       });
 
+      // Let auto cancel;
+      let autocCancel = setTimeout(async () => {
+        await this.handlerCancelLocal(n_service.id);
+      }, 600e3);
+      // 600e3 = 600s = 10p
+      // 10e3 = 10s = 0.6p
+      this.addCancel(n_service.id, autocCancel);
+
       // save Log
       this.logger.log(
         `Service Create: UID:${uid} - Type: w_gold - Amount: ${amount}`,
       );
-
-      // send data back
 
       // Send realtime;
       this.socketGateWay.server.emit('service.update', n_service.toObject());
@@ -106,7 +135,6 @@ export class ServiceService {
         message: 'Bạn đã tạo giao dịch thành công',
       };
     } catch (error: any) {
-      console.log(error);
       this.logger.log(
         `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${error.message}`,
       );
@@ -152,6 +180,8 @@ export class ServiceService {
         });
 
         target_u.money += refund_rgold;
+        target_u.meta.limitTrade += refund_rgold;
+        target_u.meta.trade -= refund_rgold;
         target_s.revice = refund_rgold;
       }
 
@@ -170,6 +200,8 @@ export class ServiceService {
         });
 
         target_u.money += refund_gold;
+        target_u.meta.limitTrade += refund_gold;
+        target_u.meta.trade -= refund_gold;
         target_s.revice = refund_gold;
       }
 
@@ -213,6 +245,100 @@ export class ServiceService {
     }
   }
 
+  async handlerCancelLocal(serviceId: string) {
+    try {
+      const target_s = await this.serviceModel.findById(serviceId);
+      if (!target_s) throw new Error('Service not found');
+
+      let uid = target_s.uid.toString();
+
+      const target_u = await this.userService.findUserOption({ _id: uid });
+      if (!target_u) throw new Error('Người dùng không tồn tại');
+
+      if (target_s.isEnd) throw new Error('Giao dịch đã kết thúc');
+      // Cancel Auto Service
+      this.removeCancel(serviceId);
+
+      // Cancel Service;
+      target_s.isEnd = true;
+      target_s.status = '1';
+
+      // refund user if that is type Service is withdraw
+      const { type, amount } = target_s.toObject();
+      // / Rgold
+      if (type === '0') {
+        let refund_rgold = amount * 1e6 * 37;
+        // Save active
+        await this.userService.createUserActive({
+          uid,
+          active: {
+            name: 'cancel_w_rgold',
+            m_current: target_u.money,
+            m_new: target_u.money + refund_rgold,
+            status: '1',
+          },
+        });
+
+        target_u.money += refund_rgold;
+        target_u.meta.limitTrade += refund_rgold;
+        target_u.meta.trade -= refund_rgold;
+        target_s.revice = refund_rgold;
+      }
+
+      // / Gold
+      if (type === '1') {
+        let refund_gold = amount;
+        // Save active
+        await this.userService.createUserActive({
+          uid,
+          active: {
+            name: 'cancel_w_gold',
+            m_current: target_u.money,
+            m_new: target_u.money + refund_gold,
+            status: '1',
+          },
+        });
+
+        target_u.money += refund_gold;
+        target_u.meta.limitTrade += refund_gold;
+        target_u.meta.trade -= refund_gold;
+        target_s.revice = refund_gold;
+      }
+
+      // Another deposit ...
+      if (type === '2' || type === '3') {
+        await this.userService.createUserActive({
+          uid,
+          active: {
+            name: type === '2' ? 'cancel_d_rgold' : 'cancel_d_gold',
+            m_current: target_u.money,
+            m_new: target_u.money,
+            status: '1',
+          },
+        });
+      }
+
+      // Save user;
+      await target_u.save();
+      const { pwd_h, ...res_user } = target_u;
+
+      // Update Service;
+      await target_s.save();
+
+      // Save log
+      this.logger.log(
+        `Auto Cancel Service: UID:${uid} - ServiceId: ${serviceId}`,
+      );
+
+      // Send data back
+      this.socketGateWay.server.emit('service.update', target_s.toObject());
+      this.socketGateWay.server.emit('user.update', res_user);
+    } catch (err: any) {
+      this.logger.log('Err Cancel Service Auto: ', err.message);
+      this.removeCancel(serviceId);
+    }
+  }
+
   async history(payload: { page: number; limited: number; ownerId: string }) {
     const { ownerId, page, limited } = payload;
     try {
@@ -238,6 +364,28 @@ export class ServiceService {
     } catch (err: any) {
       this.logger.log(`Err History: ${ownerId} - Msg: ${err.message}`);
       throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  //TODO ———————————————[Zone Auto Cancel Service]———————————————
+  async addCancel(serviceId: string, timeOutId: any) {
+    try {
+      this.mapService.set(serviceId, timeOutId);
+      this.logger.log('Add New Service Auto');
+      return;
+    } catch (err: any) {}
+  }
+
+  async removeCancel(serviceId: string) {
+    try {
+      if (this.mapService.has(serviceId)) {
+        let auto = this.mapService.get(serviceId);
+        clearTimeout(auto);
+        this.mapService.delete(serviceId);
+      }
+      this.logger.log('Remove Service is success');
+    } catch (err: any) {
+      this.logger.log('Err Remove Service Auto: ', err.message);
     }
   }
 }
