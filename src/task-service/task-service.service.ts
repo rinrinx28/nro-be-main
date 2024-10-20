@@ -39,6 +39,14 @@ export class TaskServiceService {
   }
 
   @Cron('0 0 0 * * *', {
+    name: 'reset.mini.game',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  })
+  handlerResetMiniGame() {
+    this.emitEvent2.emitAsync('reset.mini.game', 'run');
+  }
+
+  @Cron('0 0 0 * * *', {
     name: 'top.clan',
     timeZone: 'Asia/Ho_Chi_Minh',
   })

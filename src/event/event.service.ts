@@ -16,6 +16,7 @@ import { Message } from 'src/message/schema/message.schema';
 import { ClanMessage } from 'src/clan/schema/msgClan.schema';
 import moment from 'moment';
 import { UserActive } from 'src/user/schema/userActive.schema';
+import { MiniGame } from 'src/mini-game/schema/mini.schema';
 
 @Injectable()
 export class EventService {
@@ -36,6 +37,8 @@ export class EventService {
     private readonly MessageModel: Model<Message>,
     @InjectModel(ClanMessage.name)
     private readonly ClanMessageModel: Model<ClanMessage>,
+    @InjectModel(MiniGame.name)
+    private readonly MiniGameModel: Model<MiniGame>,
   ) {}
   private logger: Logger = new Logger('Middle Handler');
 
@@ -386,6 +389,27 @@ export class EventService {
       this.logger.log('Auto Reset Message is success!');
     } catch (err: any) {
       this.logger.log('Err Auto Reset Message: ' + err.message);
+    }
+  }
+
+  @OnEvent('reset.mini.game', { async: true })
+  async handleResetMinigame() {
+    try {
+      await this.MiniGameModel.updateMany(
+        {
+          server: {
+            $in: ['1', '2', '3', '4', '5', '6', '7', '8', '11', '12', '13'],
+          },
+        },
+        {
+          $set: {
+            isEnd: true,
+          },
+        },
+      );
+      this.logger.log('Auto Reset Mini game is Success!');
+    } catch (err: any) {
+      this.logger.log('Err auto reset mini game: ' + err.message);
     }
   }
 }

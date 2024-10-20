@@ -14,6 +14,7 @@ import {
   UserActive,
   UserActiveSchema,
 } from 'src/user/schema/userActive.schema';
+import { MiniGame, MiniGameSchema } from 'src/mini-game/schema/mini.schema';
 
 @Module({
   imports: [
@@ -37,6 +38,10 @@ import {
       {
         name: Message.name,
         schema: MessageSchema,
+      },
+      {
+        name: MiniGame.name,
+        schema: MiniGameSchema,
       },
     ]),
     SocketClientModule,
