@@ -28,7 +28,24 @@ export class MiniGameService {
       const e_bet = await this.userService.findConfigWithName('e_bet');
       const option = e_bet.option;
       if (!e_bet.isEnable) throw new Error('Hệ thống cược đang bảo trì!');
-      const { timePause24, enable24, timePause, enable } = option;
+      const {
+        timePause = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
+        enable = [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+        ],
+        timePause24 = 15,
+        enable24 = false,
+      } = option;
       const a_game = await this.miniGameModel.findById(betId);
       if (!a_game) throw new Error('Mã phiên BET không tồn tại');
       if (a_game.isEnd) throw new Error('Phiên BET đã kết thúc');
@@ -46,11 +63,13 @@ export class MiniGameService {
             ? parseInt(server, 10) - 3
             : 24;
       if (index_sv < 24) {
-        if (!enable[index_sv])
+        let isEnable = enable[index_sv] ?? false;
+        let isTimePause = timePause[index_sv] ?? 15;
+        if (!isEnable)
           throw new Error(
             `Máy Chủ ${server}: Đang bảo trì, xin vui lòng về máy chủ 24`,
           );
-        if (timeEnd - current_time < timePause[index_sv])
+        if (timeEnd - current_time < isTimePause)
           throw new Error('Phiên BET đã đóng cược');
       } else {
         if (!enable24)
