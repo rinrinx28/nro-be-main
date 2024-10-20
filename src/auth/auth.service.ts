@@ -97,7 +97,11 @@ export class AuthService {
         { message: 'Tên hiển thị đã được sử dụng!', code: 400 },
         HttpStatus.BAD_REQUEST,
       );
-    const user = await this.userService.createUser({ ...payload, pwd_h });
+    const user = await this.userService.createUser({
+      ...payload,
+      pwd_h,
+      money: 5e6,
+    });
     await this.userService.createUserActive({
       uid: user.id,
       active: {

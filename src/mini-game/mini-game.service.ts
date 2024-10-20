@@ -27,6 +27,7 @@ export class MiniGameService {
       // Check Minigame is avaible
       const e_bet = await this.userService.findConfigWithName('e_bet');
       const option = e_bet.option;
+      if (!e_bet.isEnable) throw new Error('Hệ thống cược đang bảo trì!');
       const { timePause24, enable24, timePause, enable } = option;
       const a_game = await this.miniGameModel.findById(betId);
       if (!a_game) throw new Error('Mã phiên BET không tồn tại');
@@ -133,7 +134,7 @@ export class MiniGameService {
       }
 
       // Save active
-      await this.userService.createUserActive({
+      const userActive = await this.userService.createUserActive({
         uid: uid,
         active: {
           name: 'place_bet',
@@ -179,6 +180,10 @@ export class MiniGameService {
         a_game.id,
       );
       this.socketGateway.server.emit('userbet.update', userBet.toObject());
+      this.socketGateway.server.emit(
+        'userActive.update',
+        userActive.toObject(),
+      );
       return {
         message: 'Bạn đã tham gia cược thành công',
         user: res_u,
@@ -227,7 +232,7 @@ export class MiniGameService {
 
       //   refund money to user;
       let refund_money = userBet.amount;
-      await this.userService.createUserActive({
+      const userActive = await this.userService.createUserActive({
         uid,
         active: {
           name: 'cancel_bet',
@@ -264,6 +269,10 @@ export class MiniGameService {
 
       this.socketGateway.server.emit('userbet.update', userBet.toObject());
       this.socketGateway.server.emit('user.update', res_u);
+      this.socketGateway.server.emit(
+        'userActive.update',
+        userActive.toObject(),
+      );
 
       return {
         message: 'Bạn đã hủy cược thành công',

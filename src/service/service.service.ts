@@ -24,9 +24,13 @@ export class ServiceService {
       const e_shop = await this.userService.findConfigWithName('e_shop');
       if (!e_shop) throw new Error('Không tìm thấy cài đặt e_shop');
       if (!e_shop.isEnable)
-        throw new Error(
-          'Hệ thống nạp/rút hiện đang bảo trì, xin vui lòng thử lại sau, nếu bạn có đơn chưa hoàn thành, xin vui lòng hoàn thành đơn giao dịch trước đó!',
-        );
+        throw new Error('Hệ thống nạp/rút hiện đang bảo trì!');
+      const {
+        min_gold = 50e6,
+        min_rgold = 4,
+        max_gold = 600e6,
+        max_rgold = 40,
+      } = e_shop.option;
       // Let Check old service isEnd?
       const old_s = await this.serviceModel
         .findOne({ playerName: playerName, uid: uid })
@@ -58,7 +62,15 @@ export class ServiceService {
       // Check Service Withdraw
       // Let minus money user with withdraw rgold
       if (type === '0') {
-        let withdraw_rgold = amount * 1e6 * 37;
+        let withdraw_rgold = amount * 37e6;
+        if (amount < min_rgold)
+          throw new Error(
+            `Mức rút tối thiểu là ${new Intl.NumberFormat('vi').format(min_rgold)} thỏi vàng`,
+          );
+        if (amount > max_rgold)
+          throw new Error(
+            `Mức rút tối đa là ${new Intl.NumberFormat('vi').format(max_rgold)} thỏi vàng`,
+          );
         if (user.money - withdraw_rgold <= 1)
           throw new Error('Số dư của bạn không khả dụng');
         user.money -= withdraw_rgold;
@@ -78,6 +90,14 @@ export class ServiceService {
       // Let minus money user with withdraw gold
       if (type === '1') {
         let withdraw_gold = amount;
+        if (amount < min_gold)
+          throw new Error(
+            `Mức rút tối thiểu là ${new Intl.NumberFormat('vi').format(min_gold)} vàng`,
+          );
+        if (amount > max_gold)
+          throw new Error(
+            `Mức rút tối đa là ${new Intl.NumberFormat('vi').format(max_gold)} vàng`,
+          );
         if (user.money - withdraw_gold <= 1)
           throw new Error('Số dư của bạn không khả dụng');
         user.money -= withdraw_gold;
@@ -109,7 +129,6 @@ export class ServiceService {
 
       // Let save user;
       await user.save();
-
       const { pwd_h, ...res_user } = user.toObject();
 
       // / Let Create Service
@@ -170,7 +189,7 @@ export class ServiceService {
       target_s.status = '1';
 
       // refund user if that is type Service is withdraw
-      const { type, amount } = target_s.toObject();
+      const { type, amount } = target_s;
       // / Rgold
       if (type === '0') {
         let refund_rgold = amount * 1e6 * 37;
@@ -270,10 +289,10 @@ export class ServiceService {
       target_s.status = '1';
 
       // refund user if that is type Service is withdraw
-      const { type, amount } = target_s.toObject();
+      const { type, amount } = target_s;
       // / Rgold
       if (type === '0') {
-        let refund_rgold = amount * 1e6 * 37;
+        let refund_rgold = amount * 37e6;
         // Save active
         await this.userService.createUserActive({
           uid,

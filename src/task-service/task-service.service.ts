@@ -53,4 +53,12 @@ export class TaskServiceService {
   handlerTopUser() {
     this.emitEvent2.emitAsync('top.user', 'run');
   }
+
+  @Cron('0 0 0 * * *', {
+    name: 'reset.message',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  })
+  handlerResetMSG() {
+    this.emitEvent2.emitAsync('reset.message', 'run');
+  }
 }

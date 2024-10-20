@@ -14,7 +14,6 @@ import {
   CancelServiceController,
   CreateServiceController,
 } from './dto/dto.service';
-import { Request } from 'express';
 
 @Controller('service')
 @UseGuards(JwtAuthGuard)
@@ -29,6 +28,7 @@ export class ServiceController {
     const user = req.user;
     return await this.serviceService.handlerCreate({
       ...body,
+      amount: Number(body.amount),
       uid: user._id.toString(),
     });
   }

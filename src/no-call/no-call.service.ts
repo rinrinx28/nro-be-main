@@ -32,14 +32,14 @@ export class NoCallService {
   }
 
   async rankClan() {
-    return await this.ClanModel.find().sort({ score: -1 }).limit(10);
+    return await this.ClanModel.find().sort({ score: -1 }).limit(5);
   }
 
   //TODO ———————————————[User Zone]———————————————
   async rankUser() {
     const users = await this.UserModel.find()
       .sort({ 'meta.totalTrade': -1 })
-      .limit(10);
+      .limit(7);
     const res_users = users.map((u) => {
       const { name, meta } = u.toObject();
       const { totalTrade, avatar } = meta;

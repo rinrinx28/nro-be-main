@@ -373,4 +373,15 @@ export class EventService {
       this.logger.log('Err Top User: ' + err.message);
     }
   }
+
+  @OnEvent('reset.message', { async: true })
+  async handlerREMsg() {
+    try {
+      await this.MessageModel.updateMany({});
+      await this.ClanMessageModel.updateMany({});
+      this.logger.log('Auto Reset Message is success!');
+    } catch (err: any) {
+      this.logger.log('Err Auto Reset Message: ' + err.message);
+    }
+  }
 }

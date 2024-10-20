@@ -8,7 +8,7 @@ export type UserActiveDocument = HydratedDocument<UserActive>;
 })
 export class UserActive {
   @Prop()
-  uid: Types.ObjectId;
+  uid: string;
 
   @Prop({ default: {}, type: SchemaTypes.Mixed })
   active: Record<string, any>;
