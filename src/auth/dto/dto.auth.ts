@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsString, Length, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  Length,
+  MinLength,
+} from 'class-validator';
 
 export class Login {
   @IsNotEmpty({ message: 'Bạn chưa nhập tên đăng nhập' })
@@ -21,6 +27,10 @@ export class Resigter {
 
   @IsNotEmpty({ message: 'Bạn chưa nhập tên hiển thị' })
   name: string;
+
+  @IsNotEmpty({ message: 'Bạn chưa nhập tên hiển thị' })
+  @IsEmail()
+  email: string;
 
   @IsNotEmpty({ message: 'Bạn chưa chọn máy chủ' })
   server: string;
