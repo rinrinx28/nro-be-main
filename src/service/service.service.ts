@@ -1,0 +1,243 @@
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { Service } from './schema/service.schema';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { UserService } from 'src/user/user.service';
+import { CancelService, CreateService } from './dto/dto.service';
+import { SocketGateway } from 'src/socket/socket.gateway';
+
+@Injectable()
+export class ServiceService {
+  constructor(
+    @InjectModel(Service.name)
+    private readonly serviceModel: Model<Service>,
+    private readonly userService: UserService,
+    private readonly socketGateWay: SocketGateway,
+  ) {}
+
+  private logger: Logger = new Logger('Service');
+
+  async handlerCreate(payload: CreateService) {
+    const { amount, playerName, type, uid, server } = payload;
+    try {
+      // Let Check old service isEnd?
+      const old_s = await this.serviceModel
+        .findOne({ playerName: playerName, uid: uid })
+        .sort({ updatedAt: -1 });
+      if (old_s && !old_s.isEnd)
+        throw new Error(
+          'Đơn giao dịch trước đó chưa kết thúc, xin vui lòng kiểm tra lại!',
+        );
+      const user = await this.userService.findUserOption({ _id: uid });
+      if (!user) throw new Error('Người dùng không tồn tại!');
+      // Check Service Withdraw
+      // Let minus money user with withdraw rgold
+      if (type === '0') {
+        let withdraw_rgold = amount * 1e6 * 37;
+        if (user.money - withdraw_rgold <= 1)
+          throw new Error('Số dư của bạn không khả dụng');
+        user.money -= withdraw_rgold;
+        // Let create active;
+        await this.userService.createUserActive({
+          uid: uid,
+          active: {
+            name: 'w_rgold',
+            status: '0',
+            m_current: user.money + withdraw_rgold,
+            m_new: user.money,
+          },
+        });
+      }
+      // Let minus money user with withdraw gold
+      if (type === '1') {
+        let withdraw_gold = amount;
+        if (user.money - withdraw_gold <= 1)
+          throw new Error('Số dư của bạn không khả dụng');
+        user.money -= withdraw_gold;
+        // Let create active;
+        await this.userService.createUserActive({
+          uid: uid,
+          active: {
+            name: 'w_gold',
+            status: '0',
+            m_current: user.money + withdraw_gold,
+            m_new: user.money,
+          },
+        });
+      }
+
+      // Another Deposit ...
+      if (type === '2' || type === '3') {
+        await this.userService.createUserActive({
+          uid,
+          active: {
+            name: type === '2' ? 'd_rgold' : 'd_gold',
+            m_current: user.money,
+            m_new: user.money,
+          },
+        });
+      }
+
+      // Let save user;
+      await user.save();
+
+      const { pwd_h, ...res_user } = user.toObject();
+
+      // / Let Create Service
+      const n_service = await this.serviceModel.create({
+        uid: uid,
+        playerName: playerName,
+        amount: amount,
+        type,
+        server,
+      });
+
+      // save Log
+      this.logger.log(
+        `Service Create: UID:${uid} - Type: w_gold - Amount: ${amount}`,
+      );
+
+      // send data back
+
+      // Send realtime;
+      this.socketGateWay.server.emit('service.update', n_service.toObject());
+      this.socketGateWay.server.emit('user.update', res_user);
+      return {
+        message: 'Bạn đã tạo giao dịch thành công',
+      };
+    } catch (error: any) {
+      console.log(error);
+      this.logger.log(
+        `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${error.message}`,
+      );
+      throw new HttpException(
+        { message: error.message, code: 400 },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  async handlerUpdate(payload: CancelService) {
+    const { serviceId, uid } = payload;
+    try {
+      const target_s = await this.serviceModel.findById(serviceId);
+      if (!target_s) throw new Error('Mã giao dịch không tồn tại');
+
+      const target_u = await this.userService.findUserOption({ _id: uid });
+      if (!target_u) throw new Error('Người dùng không tồn tại');
+
+      if (target_s.uid !== target_u.id)
+        throw new Error('Người dùng không tồn tại');
+
+      if (target_s.isEnd) throw new Error('Giao dịch đã kết thúc');
+
+      // Cancel Service;
+      target_s.isEnd = true;
+      target_s.status = '1';
+
+      // refund user if that is type Service is withdraw
+      const { type, amount } = target_s.toObject();
+      // / Rgold
+      if (type === '0') {
+        let refund_rgold = amount * 1e6 * 37;
+        // Save active
+        await this.userService.createUserActive({
+          uid,
+          active: {
+            name: 'cancel_w_rgold',
+            m_current: target_u.money,
+            m_new: target_u.money + refund_rgold,
+            status: '1',
+          },
+        });
+
+        target_u.money += refund_rgold;
+        target_s.revice = refund_rgold;
+      }
+
+      // / Gold
+      if (type === '1') {
+        let refund_gold = amount;
+        // Save active
+        await this.userService.createUserActive({
+          uid,
+          active: {
+            name: 'cancel_w_gold',
+            m_current: target_u.money,
+            m_new: target_u.money + refund_gold,
+            status: '1',
+          },
+        });
+
+        target_u.money += refund_gold;
+        target_s.revice = refund_gold;
+      }
+
+      // Another deposit ...
+      if (type === '2' || type === '3') {
+        await this.userService.createUserActive({
+          uid,
+          active: {
+            name: type === '2' ? 'cancel_d_rgold' : 'cancel_d_gold',
+            m_current: target_u.money,
+            m_new: target_u.money,
+            status: '1',
+          },
+        });
+      }
+
+      // Save user;
+      await target_u.save();
+      const { pwd_h, ...res_user } = target_u;
+
+      // Update Service;
+      await target_s.save();
+
+      // Save log
+      this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
+
+      // Send data back
+      this.socketGateWay.server.emit('service.update', target_s.toObject());
+      this.socketGateWay.server.emit('user.update', res_user);
+      return {
+        message: 'Bạn đã hủy giao dịch thành công',
+      };
+    } catch (err: any) {
+      this.logger.log(
+        `Err Service Cancel: UID: ${uid} - ServiceId: ${serviceId} - Msg: ${err.message}`,
+      );
+      throw new HttpException(
+        { message: err.message, code: 400 },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  async history(payload: { page: number; limited: number; ownerId: string }) {
+    const { ownerId, page, limited } = payload;
+    try {
+      // Fetch the paginated user activities
+      const services = await this.serviceModel
+        .find({ uid: ownerId })
+        .sort({ updatedAt: -1 })
+        .limit(limited)
+        .skip(page * limited);
+
+      // Count the total number of documents that match the query
+      const totalItems = await this.serviceModel.countDocuments({
+        uid: ownerId,
+      });
+      return {
+        data: services,
+        page: page,
+        limited: limited,
+        skip: page * limited,
+        totalItems: totalItems,
+        totalPages: Math.ceil(totalItems / limited),
+      };
+    } catch (err: any) {
+      this.logger.log(`Err History: ${ownerId} - Msg: ${err.message}`);
+      throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+}
