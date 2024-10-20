@@ -226,7 +226,7 @@ export class ServiceService {
 
       // Save user;
       await target_u.save();
-      const { pwd_h, ...res_user } = target_u;
+      const { pwd_h, ...res_user } = target_u.toObject();
 
       // Update Service;
       await target_s.save();
@@ -326,7 +326,7 @@ export class ServiceService {
 
       // Save user;
       await target_u.save();
-      const { pwd_h, ...res_user } = target_u;
+      const { pwd_h, ...res_user } = target_u.toObject();
 
       // Update Service;
       await target_s.save();
