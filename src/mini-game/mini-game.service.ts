@@ -4,11 +4,10 @@ import { Model, SchemaTypes } from 'mongoose';
 import { MiniGame } from './schema/mini.schema';
 import { UserService } from 'src/user/user.service';
 import { Cancel, Place, typeBet, typePlace } from './dto/dto.mini';
-import moment from 'moment';
+import * as moment from 'moment';
 import { SocketClientService } from 'src/socket/socket.service';
 import { SocketGateway } from 'src/socket/socket.gateway';
 import { UserBet } from 'src/user/schema/userBet.schema';
-
 @Injectable()
 export class MiniGameService {
   constructor(
