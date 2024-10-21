@@ -40,10 +40,7 @@ export class NoCallController {
     @Query('server') server: string,
     @Query('limited') limited: number,
   ) {
-    return await this.noCallService.listUserBet(
-      (server = '24'),
-      (limited = 25),
-    );
+    return await this.noCallService.listUserBet(server, limited);
   }
 
   @Get('/info/mini')
