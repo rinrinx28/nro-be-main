@@ -56,29 +56,47 @@ export class MiniGameService {
       let current_time = moment().unix();
 
       // Query Config Bet SV:
-      let index_sv = ['1', '2', '3', '4', '5', '6', '7'].includes(server)
-        ? parseInt(server, 10) - 1
-        : server === '8'
-          ? 7
-          : ['11', '12', '13'].includes(server)
-            ? parseInt(server, 10) - 3
-            : 24;
+      // Kiểm tra xem server có nằm trong danh sách hợp lệ không
+      let index_sv = null;
+
+      if (['1', '2', '3', '4', '5', '6', '7'].includes(server)) {
+        index_sv = parseInt(server, 10) - 1;
+      } else if (server === '8') {
+        index_sv = 7;
+      } else if (['11', '12', '13'].includes(server)) {
+        index_sv = parseInt(server, 10) - 3;
+      } else {
+        index_sv = 24; // Máy chủ mặc định là 24
+      }
+
       if (index_sv < 24) {
+        // Kiểm tra trạng thái máy chủ (enable) và thời gian tạm dừng (timePause) cho các máy chủ từ 1 đến 7 và 11 đến 13
         let isEnable = enable[index_sv] ?? false;
         let isTimePause = timePause[index_sv] ?? 15;
-        if (!isEnable)
+
+        // Nếu máy chủ không được phép, báo lỗi
+        if (!isEnable) {
           throw new Error(
             `Máy Chủ ${server}: Đang bảo trì, xin vui lòng về máy chủ 24`,
           );
-        if (timeEnd - current_time < isTimePause)
+        }
+
+        // Nếu thời gian hiện tại gần với thời gian kết thúc (timeEnd), báo lỗi đóng cược
+        if (timeEnd - current_time < isTimePause) {
           throw new Error('Phiên BET đã đóng cược');
+        }
       } else {
-        if (!enable24)
+        // Xử lý riêng cho máy chủ 24
+        if (!enable24) {
           throw new Error(
             `Máy Chủ ${server}: Đang bảo trì, xin vui lòng về các máy chủ khác`,
           );
-        if (timeEnd - current_time < timePause24)
+        }
+
+        // Kiểm tra thời gian tạm dừng cho máy chủ 24
+        if (timeEnd - current_time < timePause24) {
           throw new Error('Phiên BET đã đóng cược');
+        }
       }
 
       const user = await this.userService.findUserOption({ _id: uid });
@@ -194,7 +212,7 @@ export class MiniGameService {
         x: x + split_place.x,
       };
 
-      a_game.markModified('meta');
+      a_game.markModified('resultUser');
       await a_game.save();
 
       if (amount > 5e8) {
@@ -236,6 +254,25 @@ export class MiniGameService {
     try {
       const e_bet = await this.userService.findConfigWithName('e_bet');
       const option = e_bet.option;
+      if (!e_bet.isEnable) throw new Error('Hệ thống cược đang bảo trì!');
+      const {
+        timePause = [15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15],
+        enable = [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+        ],
+        timePause24 = 15,
+        enable24 = false,
+      } = option;
 
       //   Query bet is avaible;
       const userBet = await this.userService.findUserBetWithId(userBetId);
@@ -246,12 +283,52 @@ export class MiniGameService {
 
       if (a_game.isEnd) throw new Error('Phiên cược đã kết thúc');
 
+      // Kiểm tra xem server có nằm trong danh sách hợp lệ không
+      let server = userBet.server;
+      let index_sv = null;
+      // Query TimePause BET
       let timeEnd = moment(`${a_game.timeEnd}`).unix();
       let current_time = moment().unix();
-      if (timeEnd - current_time <= option['timePause'])
-        throw new Error(
-          'Phiên cược đã đóng, bạn không thể hủy cược vào lúc này',
-        );
+
+      if (['1', '2', '3', '4', '5', '6', '7'].includes(server)) {
+        index_sv = parseInt(server, 10) - 1;
+      } else if (server === '8') {
+        index_sv = 7;
+      } else if (['11', '12', '13'].includes(server)) {
+        index_sv = parseInt(server, 10) - 3;
+      } else {
+        index_sv = 24; // Máy chủ mặc định là 24
+      }
+
+      if (index_sv < 24) {
+        // Kiểm tra trạng thái máy chủ (enable) và thời gian tạm dừng (timePause) cho các máy chủ từ 1 đến 7 và 11 đến 13
+        let isEnable = enable[index_sv] ?? false;
+        let isTimePause = timePause[index_sv] ?? 15;
+
+        // Nếu máy chủ không được phép, báo lỗi
+        if (!isEnable) {
+          throw new Error(
+            `Máy Chủ ${server}: Đang bảo trì, xin vui lòng về máy chủ 24`,
+          );
+        }
+
+        // Nếu thời gian hiện tại gần với thời gian kết thúc (timeEnd), báo lỗi đóng cược
+        if (timeEnd - current_time < isTimePause) {
+          throw new Error('Phiên BET đã đóng cược');
+        }
+      } else {
+        // Xử lý riêng cho máy chủ 24
+        if (!enable24) {
+          throw new Error(
+            `Máy Chủ ${server}: Đang bảo trì, xin vui lòng về các máy chủ khác`,
+          );
+        }
+
+        // Kiểm tra thời gian tạm dừng cho máy chủ 24
+        if (timeEnd - current_time < timePause24) {
+          throw new Error('Phiên BET đã đóng cược');
+        }
+      }
 
       const user = await this.userService.findUserOption({ _id: uid });
       if (!user) throw new Error('Người dùng không tồn tại');
@@ -260,7 +337,6 @@ export class MiniGameService {
       userBet.status = 1;
       userBet.revice = userBet.amount;
       userBet.result = '';
-      userBet.markModified('meta');
       await userBet.save();
 
       //   refund money to user;
@@ -276,7 +352,6 @@ export class MiniGameService {
       });
 
       user.money += refund_money;
-      user.markModified('meta');
       await user.save();
       const { pwd_h, ...res_u } = user.toObject();
 
@@ -294,7 +369,7 @@ export class MiniGameService {
         x: x - split_place.x,
       };
 
-      a_game.markModified('meta');
+      a_game.markModified('resultUser');
       await a_game.save();
       // TODO Send to sv for reSend all client
       this.socketClientService.sendMessageToServer(
@@ -336,7 +411,15 @@ export class MiniGameService {
       if (place === 'X') total_place.x = amount;
       return total_place;
     } else {
-      return { t: amount / 2, x: amount / 2, c: 0, l: 0 };
+      if (place === 'CT')
+        total_place = { ...total_place, c: amount / 2, t: amount / 2 };
+      if (place === 'LT')
+        total_place = { ...total_place, l: amount / 2, t: amount / 2 };
+      if (place === 'CX')
+        total_place = { ...total_place, c: amount / 2, x: amount / 2 };
+      if (place === 'LX')
+        total_place = { ...total_place, l: amount / 2, x: amount / 2 };
+      return total_place;
     }
   }
 

@@ -43,7 +43,7 @@ export class ServiceService {
       if (!user) throw new Error('Người dùng không tồn tại!');
       const { money, meta } = user;
       // Check limited;
-      if (['0', '1'].includes(type)) {
+      if (type === '0' || type === '1') {
         let { limitTrade } = user.meta;
         if (type === '0') {
           let withdraw_rgold = amount * 37e6;
@@ -198,6 +198,8 @@ export class ServiceService {
       // Cancel Service;
       target_s.isEnd = true;
       target_s.status = '1';
+
+      this.removeCancel(target_s.id);
 
       // refund user if that is type Service is withdraw
       const { type, amount } = target_s;
