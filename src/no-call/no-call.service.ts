@@ -73,10 +73,10 @@ export class NoCallService {
   }
 
   //TODO ———————————————[User Bet]———————————————
-  async listUserBet(server: string, limited: number) {
+  async listUserBet(server: string, limited: string) {
     return await this.UserBetModel.find({ server: server })
       .sort({ updatedAt: -1 })
-      .limit(limited);
+      .limit(parseInt(limited, 10));
   }
 
   async minigame(server: string) {

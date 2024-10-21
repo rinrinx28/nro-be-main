@@ -26,7 +26,7 @@ export class UserController {
     return await this.userService.historyUserBet({
       ownerId: user._id.toString(),
       page: Number(page),
-      limited: Number(limited),
+      limited: parseInt(limited, 10),
       server,
     });
   }
@@ -38,7 +38,7 @@ export class UserController {
     return await this.userService.historyUserActive({
       ownerId: user._id.toString(),
       page: Number(page),
-      limited: Number(limited),
+      limited: parseInt(limited, 10),
     });
   }
 }

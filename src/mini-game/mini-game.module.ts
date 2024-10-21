@@ -6,6 +6,7 @@ import { MiniGame, MiniGameSchema } from './schema/mini.schema';
 import { ResultMiniGame, ResultMiniGameSchema } from './schema/result.schema';
 import { UserModule } from 'src/user/user.module';
 import { SocketClientModule } from 'src/socket/socket.module';
+import { MessageModule } from 'src/message/message.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SocketClientModule } from 'src/socket/socket.module';
     ]),
     UserModule,
     SocketClientModule,
+    MessageModule,
   ],
 
   controllers: [MiniGameController],

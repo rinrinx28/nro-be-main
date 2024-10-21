@@ -38,7 +38,7 @@ export class NoCallController {
   @Get('/list/userbet')
   async listUserBet(
     @Query('server') server: string,
-    @Query('limited') limited: number,
+    @Query('limited') limited: string,
   ) {
     return await this.noCallService.listUserBet(server, limited);
   }

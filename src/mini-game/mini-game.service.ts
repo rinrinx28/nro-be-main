@@ -8,6 +8,7 @@ import * as moment from 'moment';
 import { SocketClientService } from 'src/socket/socket.service';
 import { SocketGateway } from 'src/socket/socket.gateway';
 import { UserBet } from 'src/user/schema/userBet.schema';
+import { MessageService } from 'src/message/message.service';
 @Injectable()
 export class MiniGameService {
   constructor(
@@ -16,6 +17,7 @@ export class MiniGameService {
     private userService: UserService,
     private socketClientService: SocketClientService,
     private socketGateway: SocketGateway,
+    private messageService: MessageService,
   ) {}
 
   private logger: Logger = new Logger('MiniGame');
@@ -194,6 +196,16 @@ export class MiniGameService {
 
       a_game.markModified('meta');
       await a_game.save();
+
+      if (amount > 5e8) {
+        let res_s = this.show_res(place);
+        const msg = await this.messageService.createMSG({
+          uid: 'local',
+          server: server,
+          content: `Người chơi ${user.name} đang chơi lớn ${new Intl.NumberFormat('vi').format(amount)} vàng vào ${res_s}`,
+        });
+        this.socketGateway.server.emit('message.re', msg);
+      }
       // TODO Send to sv for reSend all client
       this.socketClientService.sendMessageToServer(
         'mini.server.24.re',
@@ -352,6 +364,34 @@ export class MiniGameService {
     }
 
     return true;
+  }
+
+  show_res(res: string) {
+    if (res === 'C') {
+      return 'Chẵn';
+    }
+    if (res === 'L') {
+      return 'Lẻ';
+    }
+    if (res === 'T') {
+      return 'Tài';
+    }
+    if (res === 'X') {
+      return 'Xỉu';
+    }
+    if (res === 'CT') {
+      return 'Chẵn Tài';
+    }
+    if (res === 'CX') {
+      return 'Chẵn Xỉu';
+    }
+    if (res === 'LT') {
+      return 'Lẻ Tài';
+    }
+    if (res === 'LX') {
+      return 'Lẻ Xỉu';
+    }
+    return res;
   }
 }
 
