@@ -9,10 +9,15 @@ import { JwtService } from '@nestjs/jwt';
 import { UserService } from 'src/user/user.service';
 import * as bcrypt from 'bcrypt';
 import { ChangePWD, Resigter } from './dto/dto.auth';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { FingerPrint } from './schema/finger.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectModel(FingerPrint.name)
+    private readonly FingerPrintModel: Model<FingerPrint>,
     private userService: UserService,
     private jwtService: JwtService,
   ) {}
@@ -67,8 +72,26 @@ export class AuthService {
     return await bcrypt.hash(password, 12);
   }
 
-  async login(user: any) {
+  async checkFinger(hash: string) {
+    try {
+      const target_finger = await this.FingerPrintModel.findOne({ hash });
+      if (target_finger && target_finger.countAccount.length === 2)
+        throw new Error(
+          'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
+        );
+      return true;
+    } catch (err: any) {
+      throw new Error(err.message);
+    }
+  }
+
+  async login(user: any, hash: string) {
     const payload = { username: user.username, sub: user._id };
+    const target_finger = await this.FingerPrintModel.findOne({ hash });
+    if (target_finger && target_finger.countAccount.length === 2)
+      throw new Error(
+        'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
+      );
     await this.userService.createUserActive({
       uid: payload.sub,
       active: {
@@ -76,6 +99,21 @@ export class AuthService {
         ip_address: 'updating',
       },
     });
+    // Save Finger & Create
+    if (!target_finger) {
+      await this.FingerPrintModel.create({ hash, countAccount: [user._id] });
+    } else {
+      await this.FingerPrintModel.findByIdAndUpdate(
+        target_finger.id,
+        {
+          countAccount: [
+            ...target_finger.countAccount.filter((c) => c !== user._id),
+            user._id,
+          ],
+        },
+        { new: true, upsert: true },
+      );
+    }
     return {
       access_token: this.jwtService.sign(payload),
       user: user,
@@ -83,10 +121,15 @@ export class AuthService {
   }
 
   async resigter(payload: Resigter) {
-    const { password, username, name } = payload;
+    const { password, username, name, hash } = payload;
     const pwd_h = await this.hashPassword(password);
     const isValiDataUserName = await this.validataUserName(username);
     const isValiDataName = await this.validataName(name);
+    const target_finger = await this.FingerPrintModel.findOne({ hash });
+    if (target_finger && target_finger.countAccount.length === 2)
+      throw new Error(
+        'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
+      );
     if (!isValiDataUserName)
       throw new HttpException(
         { message: 'Tên đăng nhập đã được sử dụng!', code: 400 },
@@ -102,6 +145,21 @@ export class AuthService {
       pwd_h,
       money: 5e6,
     });
+    // Save Finger & Create
+    if (!target_finger) {
+      await this.FingerPrintModel.create({ hash, countAccount: [user.id] });
+    } else {
+      await this.FingerPrintModel.findByIdAndUpdate(
+        target_finger.id,
+        {
+          countAccount: [
+            ...target_finger.countAccount.filter((c) => c !== user.id),
+            user.id,
+          ],
+        },
+        { new: true, upsert: true },
+      );
+    }
     await this.userService.createUserActive({
       uid: user.id,
       active: {
@@ -136,5 +194,17 @@ export class AuthService {
       },
     });
     return { message: 'Bạn đã đổi mật khẩu thành công', code: 0 };
+  }
+
+  async autoFinger(hash: string) {
+    try {
+      await this.FingerPrintModel.findOneAndUpdate(
+        { hash },
+        { hash },
+        { new: true, upsert: true },
+      );
+    } catch (err: any) {
+      console.log(err.message);
+    }
   }
 }

@@ -20,13 +20,14 @@ export class AuthController {
   // This uses the local strategy to log in
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Request() req) {
-    return this.authService.login(req.user);
+  async login(@Request() req, @Body() body: any) {
+    return this.authService.login(req.user, body?.hash);
   }
   // This uses the local strategy to log in
   @UseGuards(JwtAuthGuard)
-  @Get('relogin')
-  async relogin(@Request() req) {
+  @Post('relogin')
+  async relogin(@Request() req, @Body() body: any) {
+    await this.authService.checkFinger(body.hash);
     return req.user;
   }
 

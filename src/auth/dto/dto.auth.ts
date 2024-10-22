@@ -14,6 +14,7 @@ export class Login {
   @MinLength(6, { message: 'Độ dài mật khẩu tối thiểu là 6 ký tự' })
   @IsString({ message: 'Mật khẩu phải là chuỗi ký tự' })
   password: string;
+  hash: string;
 }
 
 export class Resigter {
@@ -34,6 +35,8 @@ export class Resigter {
 
   @IsNotEmpty({ message: 'Bạn chưa chọn máy chủ' })
   server: string;
+
+  hash: string;
 }
 
 export class ChangePWD {
