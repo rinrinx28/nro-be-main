@@ -313,11 +313,6 @@ export class ClanService {
       if (ownerId !== clan.ownerId)
         throw new Error('Bạn không phải chủ Bang hội');
 
-      // remove info clan of owner;
-      delete owner.meta.clanId;
-      delete owner.meta.timeJoin;
-      delete owner.meta.score;
-
       // Add info clan of new owner;
       n_owner.meta = {
         ...n_owner.meta,
@@ -328,12 +323,15 @@ export class ClanService {
 
       // Change new owner of clan
       clan.ownerId = n_owner.id;
+      clan.member += 1;
 
       // save all
       owner.markModified('meta');
       await owner.save();
+
       n_owner.markModified('meta');
       await n_owner.save();
+
       clan.markModified('meta');
       await clan.save();
       // Send Update;
