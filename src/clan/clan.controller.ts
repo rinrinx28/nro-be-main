@@ -15,6 +15,7 @@ import {
   CreateInviteClan,
   DeleteClan,
   RemoveInviteClan,
+  RemoveMember,
   TranferClan,
   UpdateClan,
 } from './dto/dto.clan';
@@ -36,6 +37,24 @@ export class ClanController {
 
   @Post('/update')
   async updateClan(@Body() body: UpdateClan, @Req() req: any) {
+    const user = req.user;
+    return await this.clanService.updateClan({
+      ...body,
+      ownerId: user._id.toString(),
+    });
+  }
+
+  @Post('/leave')
+  async leaveClan(@Body() body: RemoveMember, @Req() req: any) {
+    const user = req.user;
+    return await this.clanService.removeMember({
+      ...body,
+      memberId: user._id.toString(),
+    });
+  }
+
+  @Post('/kick')
+  async kickClan(@Body() body: UpdateClan, @Req() req: any) {
     const user = req.user;
     return await this.clanService.updateClan({
       ...body,

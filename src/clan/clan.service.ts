@@ -206,12 +206,22 @@ export class ClanService {
   }
 
   async removeMember(payload: RemoveMember) {
-    const { memberId } = payload;
+    const { memberId, ownerId } = payload;
     try {
       const member = await this.userService.findUserOption({ _id: memberId });
       if (!member) throw new Error('Người dùng không tồn tại');
       // Update clan;
       const clan = await this.clanModel.findById(payload.clanId);
+      if (!clan) throw new Error('Bang hội không tồn tại');
+
+      if (ownerId) {
+        const owner = await this.userService.findUserOption({ _id: ownerId });
+        if (!owner) throw new Error('Người dùng không tồn tại');
+        let { clanId = null } = owner.meta;
+        if (!clanId) throw new Error('Bạn không tham gia Bang hội');
+        if (owner.id !== clan.ownerId)
+          throw new Error('Bạn không phải là chủ bang hội');
+      }
 
       if (!member.meta.clanId)
         throw new Error('Người dùng không ở trong một Bang hội');
