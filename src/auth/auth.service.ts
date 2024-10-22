@@ -22,9 +22,13 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(username: string, pass: string): Promise<any> {
+  async validateUser(
+    username: string,
+    pass: string,
+    hash: string,
+  ): Promise<any> {
     const user = await this.userService.findUserOption({ username });
-
+    const target_finger = await this.FingerPrintModel.findOne({ hash });
     if (!user) {
       throw new UnauthorizedException('Vui lòng kiểm tra lại tên đăng nhập'); // Custom error for invalid credentials
     }
@@ -37,6 +41,22 @@ export class AuthService {
     let isMatch = await bcrypt.compare(pass, user.pwd_h);
     if (isMatch) {
       const { pwd_h, ...result } = user.toObject(); // exclude password
+
+      // Save Finger & Create
+      if (!target_finger) {
+        await this.FingerPrintModel.create({ hash, countAccount: [user.id] });
+      } else {
+        await this.FingerPrintModel.findByIdAndUpdate(
+          target_finger.id,
+          {
+            countAccount: [
+              ...target_finger.countAccount.filter((c) => c !== user.id),
+              user.id,
+            ],
+          },
+          { new: true, upsert: true },
+        );
+      }
       return result;
     }
 
@@ -72,26 +92,32 @@ export class AuthService {
     return await bcrypt.hash(password, 12);
   }
 
-  async checkFinger(hash: string) {
+  async checkFinger(hash: string, uid: string) {
     try {
       const target_finger = await this.FingerPrintModel.findOne({ hash });
-      if (target_finger && target_finger.countAccount.length === 2)
-        throw new Error(
-          'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
+
+      if (!target_finger) {
+        await this.FingerPrintModel.create({ hash, countAccount: [uid] });
+      } else {
+        await this.FingerPrintModel.findByIdAndUpdate(
+          target_finger.id,
+          {
+            countAccount: [
+              ...target_finger.countAccount.filter((c) => c !== uid),
+              uid,
+            ],
+          },
+          { new: true, upsert: true },
         );
+      }
       return true;
     } catch (err: any) {
       throw new Error(err.message);
     }
   }
 
-  async login(user: any, hash: string) {
+  async login(user: any) {
     const payload = { username: user.username, sub: user._id };
-    const target_finger = await this.FingerPrintModel.findOne({ hash });
-    if (target_finger && target_finger.countAccount.length === 2)
-      throw new Error(
-        'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
-      );
     await this.userService.createUserActive({
       uid: payload.sub,
       active: {
@@ -99,21 +125,6 @@ export class AuthService {
         ip_address: 'updating',
       },
     });
-    // Save Finger & Create
-    if (!target_finger) {
-      await this.FingerPrintModel.create({ hash, countAccount: [user._id] });
-    } else {
-      await this.FingerPrintModel.findByIdAndUpdate(
-        target_finger.id,
-        {
-          countAccount: [
-            ...target_finger.countAccount.filter((c) => c !== user._id),
-            user._id,
-          ],
-        },
-        { new: true, upsert: true },
-      );
-    }
     return {
       access_token: this.jwtService.sign(payload),
       user: user,
@@ -126,7 +137,7 @@ export class AuthService {
     const isValiDataUserName = await this.validataUserName(username);
     const isValiDataName = await this.validataName(name);
     const target_finger = await this.FingerPrintModel.findOne({ hash });
-    if (target_finger && target_finger.countAccount.length === 2)
+    if (target_finger && target_finger.countAccount.length > 2)
       throw new Error(
         'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
       );

@@ -7,6 +7,7 @@ import {
   Body,
   UseFilters,
   Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
@@ -20,15 +21,28 @@ export class AuthController {
   // This uses the local strategy to log in
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Request() req, @Body() body: any) {
-    return this.authService.login(req.user, body?.hash);
+  async login(@Request() req) {
+    return this.authService.login(req.user);
   }
-  // This uses the local strategy to log in
+
   @UseGuards(JwtAuthGuard)
   @Post('relogin')
   async relogin(@Request() req, @Body() body: any) {
-    await this.authService.checkFinger(body.hash);
-    return req.user;
+    const user = req.user;
+    // Kiểm tra dấu vân tay của thiết bị
+    const isValidFingerprint = await this.authService.checkFinger(
+      body.hash,
+      user._id.toString(),
+    );
+
+    if (!isValidFingerprint) {
+      throw new UnauthorizedException(
+        'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
+      );
+    }
+
+    // Nếu tất cả đều hợp lệ, trả về thông tin người dùng
+    return user;
   }
 
   @Post('/resigter')
