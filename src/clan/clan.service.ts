@@ -307,6 +307,7 @@ export class ClanService {
       const n_owner = await this.userService.findUserOption({
         _id: new_ownerId,
       });
+      if (!n_owner) throw new Error('Người dùng không tồn tại');
       if (n_owner.meta.clanId)
         throw new Error('Đối phương đã tham gia một Bang hội');
       const clan = await this.clanModel.findById(payload.clanId);
