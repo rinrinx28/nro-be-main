@@ -14,7 +14,7 @@ import { Model } from 'mongoose';
 import { User } from 'src/user/schema/user.schema';
 import { Message } from 'src/message/schema/message.schema';
 import { ClanMessage } from 'src/clan/schema/msgClan.schema';
-import moment from 'moment';
+import * as moment from 'moment';
 import { UserActive } from 'src/user/schema/userActive.schema';
 import { MiniGame } from 'src/mini-game/schema/mini.schema';
 
@@ -296,7 +296,9 @@ export class EventService {
             $inc: {
               money: prize, // Increment the money field by prize
             },
-            'meta.score': 0,
+            $set: {
+              'meta.score': 0,
+            },
           },
         );
 
@@ -330,6 +332,7 @@ export class EventService {
       const list_users_top = await this.UserModel.find()
         .sort({ 'meta.totalTrade': -1 })
         .limit(winer);
+
       const list_users_filter = list_users_top.filter(
         (u) => u.meta.totalTrade > require_s,
       );
@@ -355,7 +358,6 @@ export class EventService {
         });
 
         u.money += prize;
-        u.markModified('meta');
         await u.save();
       });
 
@@ -376,6 +378,7 @@ export class EventService {
 
       // Send Event to clien for Reload User;
       this.socketGateway.server.emit('user.reload', 'ok');
+      this.logger.log('Auto TOP User');
     } catch (err: any) {
       this.logger.log('Err Top User: ' + err.message);
     }
@@ -384,8 +387,8 @@ export class EventService {
   @OnEvent('reset.message', { async: true })
   async handlerREMsg() {
     try {
-      await this.MessageModel.updateMany({});
-      await this.ClanMessageModel.updateMany({});
+      await this.MessageModel.deleteMany({});
+      await this.ClanMessageModel.deleteMany({});
       this.logger.log('Auto Reset Message is success!');
     } catch (err: any) {
       this.logger.log('Err Auto Reset Message: ' + err.message);

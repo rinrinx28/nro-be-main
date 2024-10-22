@@ -303,11 +303,11 @@ export class ClanService {
     const { new_ownerId, ownerId } = payload;
     try {
       const owner = await this.userService.findUserOption({ _id: ownerId });
-      if (!owner.meta.clan) throw new Error('Bạn không tham gia Bang hội');
+      if (!owner.meta.clanId) throw new Error('Bạn không tham gia Bang hội');
       const n_owner = await this.userService.findUserOption({
         _id: new_ownerId,
       });
-      if (n_owner.meta.clan)
+      if (n_owner.meta.clanId)
         throw new Error('Đối phương đã tham gia một Bang hội');
       const clan = await this.clanModel.findById(payload.clanId);
       if (ownerId !== clan.ownerId)
