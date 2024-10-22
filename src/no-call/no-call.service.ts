@@ -66,8 +66,8 @@ export class NoCallService {
       updatedAt: -1,
     });
     const res_u = users.map((u) => {
-      const { name, meta, money } = u;
-      return { name, meta, money };
+      const { name, meta, money, _id } = u;
+      return { name, meta, money, _id };
     });
     return res_u;
   }
