@@ -109,6 +109,7 @@ export class MiniGameService {
         uid: uid,
         betId: betId,
         isEnd: false,
+        server: server,
       });
       let sum_userBet = total_userBet.reduce(
         (sum, a) => sum + (a.amount ?? 0),
