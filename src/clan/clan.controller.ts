@@ -54,9 +54,9 @@ export class ClanController {
   }
 
   @Post('/kick')
-  async kickClan(@Body() body: UpdateClan, @Req() req: any) {
+  async kickClan(@Body() body: RemoveMember, @Req() req: any) {
     const user = req.user;
-    return await this.clanService.updateClan({
+    return await this.clanService.removeMember({
       ...body,
       ownerId: user._id.toString(),
     });
