@@ -102,7 +102,8 @@ export class MiniGameService {
       const user = await this.userService.findUserOption({ _id: uid });
       if (!user) throw new Error('Người dùng không tồn tại');
       // Query Balance User;
-      if (user.money - amount <= 0) throw new Error('Số dư không khả dụng');
+      if (user.money - amount <= 0)
+        throw new Error('Số dư tối thiểu của bạn phải 1 vàng');
 
       // Check Total User Bet in the server
       let total_userBet = await this.userService.findUserBetOption({

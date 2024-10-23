@@ -73,7 +73,7 @@ export class ServiceService {
             `Mức rút tối đa là ${new Intl.NumberFormat('vi').format(max_rgold)} thỏi vàng`,
           );
         if (user.money - withdraw_rgold <= 1)
-          throw new Error('Số dư của bạn không khả dụng');
+          throw new Error('Số dư tối thiểu của bạn phải 1 vàng');
         // Update the user fields
         user.money = money - withdraw_rgold;
         user.meta = {
