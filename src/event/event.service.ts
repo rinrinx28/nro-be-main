@@ -147,7 +147,7 @@ export class EventService {
     this.socketGateway.server.emit('jackpot.update', payload);
   }
 
-  @OnEvent('jackpot.update', { async: true })
+  @OnEvent('jackpot.get', { async: true })
   async getJackpot(payload: any) {
     const jackpot = await this.JackpotModel.findOne({ server: '24' });
     this.socketGateway.server.emit('jackpot.update', jackpot.toObject());
