@@ -7,6 +7,7 @@ import { ResultMiniGame, ResultMiniGameSchema } from './schema/result.schema';
 import { UserModule } from 'src/user/user.module';
 import { SocketClientModule } from 'src/socket/socket.module';
 import { MessageModule } from 'src/message/message.module';
+import { Jackpot, JackpotSchema } from './schema/jackpot';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { MessageModule } from 'src/message/message.module';
         name: MiniGame.name,
         schema: MiniGameSchema,
       },
+      { name: Jackpot.name, schema: JackpotSchema },
     ]),
     UserModule,
     SocketClientModule,

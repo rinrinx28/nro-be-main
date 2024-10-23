@@ -9,11 +9,14 @@ import { SocketClientService } from 'src/socket/socket.service';
 import { SocketGateway } from 'src/socket/socket.gateway';
 import { UserBet } from 'src/user/schema/userBet.schema';
 import { MessageService } from 'src/message/message.service';
+import { Jackpot } from './schema/jackpot';
 @Injectable()
 export class MiniGameService {
   constructor(
     @InjectModel(MiniGame.name)
     private readonly miniGameModel: Model<MiniGame>,
+    @InjectModel(Jackpot.name)
+    private readonly JackpotModel: Model<Jackpot>,
     private userService: UserService,
     private socketClientService: SocketClientService,
     private socketGateway: SocketGateway,
@@ -204,6 +207,25 @@ export class MiniGameService {
         },
       });
 
+      // Update jackpot;
+      if (server === '24') {
+        const jackpot = await this.JackpotModel.findOne({ server: '24' });
+        if (!jackpot) {
+          const n_jackpot = await this.JackpotModel.create({
+            server: '24',
+            score: amount * 0.1,
+          });
+          this.socketGateway.server.emit(
+            'jackpot.update',
+            n_jackpot.toObject(),
+          );
+        } else {
+          jackpot.score += amount * 0.1;
+          await jackpot.save();
+          this.socketGateway.server.emit('jackpot.update', jackpot.toObject());
+        }
+      }
+
       // Update Minigame;
       let { c = 0, l = 0, t = 0, x = 0 } = a_game.resultUser;
       let split_place = this.split_place_bet(typeBet, amount, place);
@@ -370,6 +392,16 @@ export class MiniGameService {
         t: t - split_place.t,
         x: x - split_place.x,
       };
+
+      // Update jackpot;
+      if (server === '24') {
+        const jackpot = await this.JackpotModel.findOne({ server: '24' });
+        if (jackpot) {
+          jackpot.score -= userBet.amount * 0.1;
+          await jackpot.save();
+          this.socketGateway.server.emit('jackpot.update', jackpot.toObject());
+        }
+      }
 
       a_game.markModified('resultUser');
       await a_game.save();

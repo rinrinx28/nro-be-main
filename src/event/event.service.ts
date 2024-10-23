@@ -139,6 +139,10 @@ export class EventService {
     }
   }
 
+  @OnEvent('jackpot.update', { async: true })
+  async updateJackpot(payload: any) {
+    this.socketGateway.server.emit('jackpot.update', payload);
+  }
   //TODO ———————————————[Task Auto]———————————————
   @OnEvent('turn.of.mini.game', { async: true })
   async handlerTurnOfMiniGame(status: string) {
