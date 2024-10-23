@@ -123,7 +123,7 @@ export class MiniGameService {
         throw new Error(
           `Vàng cược tối thiểu là ${new Intl.NumberFormat('vi').format(option.min)} vàng`,
         );
-      if (!isCurrentServer) {
+      if (isCurrentServer) {
         let { max, sum } = option;
         // Max
         if (amount > max)
