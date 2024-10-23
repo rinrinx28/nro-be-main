@@ -17,6 +17,7 @@ import { ClanMessage } from 'src/clan/schema/msgClan.schema';
 import * as moment from 'moment';
 import { UserActive } from 'src/user/schema/userActive.schema';
 import { MiniGame } from 'src/mini-game/schema/mini.schema';
+import { Jackpot } from 'src/mini-game/schema/jackpot';
 
 @Injectable()
 export class EventService {
@@ -39,6 +40,8 @@ export class EventService {
     private readonly ClanMessageModel: Model<ClanMessage>,
     @InjectModel(MiniGame.name)
     private readonly MiniGameModel: Model<MiniGame>,
+    @InjectModel(Jackpot.name)
+    private readonly JackpotModel: Model<Jackpot>,
   ) {}
   private logger: Logger = new Logger('Middle Handler');
 
@@ -142,6 +145,12 @@ export class EventService {
   @OnEvent('jackpot.update', { async: true })
   async updateJackpot(payload: any) {
     this.socketGateway.server.emit('jackpot.update', payload);
+  }
+
+  @OnEvent('jackpot.update', { async: true })
+  async getJackpot(payload: any) {
+    const jackpot = await this.JackpotModel.findOne({ server: '24' });
+    this.socketGateway.server.emit('jackpot.update', jackpot.toObject());
   }
   //TODO ———————————————[Task Auto]———————————————
   @OnEvent('turn.of.mini.game', { async: true })

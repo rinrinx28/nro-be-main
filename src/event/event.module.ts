@@ -15,6 +15,7 @@ import {
   UserActiveSchema,
 } from 'src/user/schema/userActive.schema';
 import { MiniGame, MiniGameSchema } from 'src/mini-game/schema/mini.schema';
+import { Jackpot, JackpotSchema } from 'src/mini-game/schema/jackpot';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { MiniGame, MiniGameSchema } from 'src/mini-game/schema/mini.schema';
         name: MiniGame.name,
         schema: MiniGameSchema,
       },
+      { name: Jackpot.name, schema: JackpotSchema },
     ]),
     SocketClientModule,
     AuthModule,

@@ -54,4 +54,9 @@ export class SocketGateway
   handleInfoMini(@MessageBody() data: any) {
     this.eventEmit.emitAsync('info.mini', data);
   }
+
+  @SubscribeMessage('jackpot.get')
+  handleJackpot(@MessageBody() data: any) {
+    this.eventEmit.emitAsync('jackpot.get', data);
+  }
 }
