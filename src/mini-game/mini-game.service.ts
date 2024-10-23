@@ -213,14 +213,14 @@ export class MiniGameService {
         if (!jackpot) {
           const n_jackpot = await this.JackpotModel.create({
             server: '24',
-            score: amount * 0.1,
+            score: amount * e_bet.option.jackpot_sum,
           });
           this.socketGateway.server.emit(
             'jackpot.update',
             n_jackpot.toObject(),
           );
         } else {
-          jackpot.score += amount * 0.1;
+          jackpot.score += amount * e_bet.option.jackpot_sum;
           await jackpot.save();
           this.socketGateway.server.emit('jackpot.update', jackpot.toObject());
         }
@@ -397,7 +397,7 @@ export class MiniGameService {
       if (server === '24') {
         const jackpot = await this.JackpotModel.findOne({ server: '24' });
         if (jackpot) {
-          jackpot.score -= userBet.amount * 0.1;
+          jackpot.score -= userBet.amount * e_bet.option.jackpot_sum;
           await jackpot.save();
           this.socketGateway.server.emit('jackpot.update', jackpot.toObject());
         }
