@@ -1,8 +1,15 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CreateEConfig, UpdateEConfig } from './dto/dto';
-import { SocketClientService } from 'src/socket/socket.service';
 
 @Controller('user')
 @UseGuards(JwtAuthGuard)
@@ -40,5 +47,16 @@ export class UserController {
       page: Number(page),
       limited: parseInt(limited, 10),
     });
+  }
+
+  @Get('/claim/vip')
+  async claimVipReward(@Req() req) {
+    const userId = req.user._id; // Lấy userId từ JWT token
+    return this.userService.claimVipReward(userId);
+  }
+  @Get('/claim/daily/:index')
+  async claimDailyReward(@Req() req, @Param('index') index: string) {
+    const userId = req.user._id; // Lấy userId từ JWT token
+    return this.userService.claimDailyReward(userId, index);
   }
 }

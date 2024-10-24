@@ -13,6 +13,7 @@ import {
 } from './dto/dto';
 import { EConfig } from './schema/config.schema';
 import { UserBet } from './schema/userBet.schema';
+import * as moment from 'moment';
 
 @Injectable()
 export class UserService {
@@ -156,6 +157,127 @@ export class UserService {
         skip: page * limited,
         totalItems: totalItems,
         totalPages: Math.ceil(totalItems / limited),
+      };
+    } catch (err: any) {
+      throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  //TODO ———————————————[Reward]———————————————
+  // Xử lý nhận thưởng VIP
+  async claimVipReward(userId: string) {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) throw new Error('User not found');
+
+      const eReward = await this.eConfigModel.findOne({ name: 'e_reward' });
+      const { vipLevels } = eReward.option;
+
+      const { vip, rewardCollected } = user.meta;
+      const isRewardCollected = rewardCollected || false;
+      const totalTrade = user.meta.totalTrade || 0;
+
+      // Kiểm tra xem người dùng có đủ điều kiện nhận phần thưởng VIP
+      if (isRewardCollected) {
+        throw new Error('Bạn đã nhận phần thưởng VIP hôm nay');
+      }
+
+      const vipLevel = vipLevels.find((level) => level.level === vip);
+      if (!vipLevel)
+        throw new Error(
+          'Không tìm thấy phần thưởng VIP, xin vui lòng liên hệ ban quản trị!',
+        );
+
+      if (totalTrade < vipLevel.dailyPointsTarget)
+        throw new Error(
+          `Bạn còn thiếu ${new Intl.NumberFormat('vi').format(vipLevel.dailyPointsTarget - totalTrade)} để nhận phần thưởng này`,
+        );
+
+      // Save active
+      await this.userActiveModel.create({
+        uid: userId,
+        active: {
+          name: 'reward_vip',
+          m_current: user.money,
+          m_new: user.money + vipLevel.money,
+        },
+      });
+
+      // Cấp thưởng VIP (ở đây là "money" theo bảng cấu hình)
+      user.money += vipLevel.money;
+      user.meta.rewardCollected = true; // Lưu lại VIP đã nhận
+
+      user.markModified('meta');
+      await user.save();
+      const { pwd_h, ...res_u } = user.toObject();
+      return {
+        success: true,
+        message: `Bạn đã nhận phần thưởng VIP ${vip} thành công`,
+        data: res_u,
+      };
+    } catch (err: any) {
+      throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  // Xử lý nhận thưởng hàng ngày
+  async claimDailyReward(userId: string, index: string) {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) throw new Error('Người dùng không tồn tại');
+
+      const eReward = await this.eConfigModel.findOne({ name: 'e_reward' });
+      const { daily } = eReward.option;
+
+      const { rewardDayCollected = [] } = user.meta;
+
+      const isRewardDayCollected =
+        rewardDayCollected.find((r) => r.index === parseInt(index, 10))
+          ?.isReward ?? false;
+
+      // Kiểm tra nếu người dùng đã nhận thưởng ngày hôm nay
+      if (isRewardDayCollected) {
+        throw new Error('Bạn đã hoàn thành nhiệm vụ này trước đó');
+      }
+
+      const totalTrade = user.meta.totalTrade || 0;
+
+      // Tìm phần thưởng hàng ngày dựa trên số điểm
+      const dailyReward = daily[parseInt(index)];
+      if (!dailyReward) {
+        throw new Error(
+          'Đã xảy ra lỗi đối với Phần Thưởng Mỗi Ngày, xin vui lòng liên hệ với ban quản trị!',
+        );
+      }
+
+      if (totalTrade < dailyReward.dailyPointsTarget)
+        throw new Error(
+          `Bạn còn thiếu ${new Intl.NumberFormat('vi').format(dailyReward.dailyPointsTarget - totalTrade)} để nhận phần thưởng này`,
+        );
+
+      // Save active
+      await this.userActiveModel.create({
+        uid: userId,
+        active: {
+          name: 'reward_daily',
+          m_current: user.money,
+          m_new: user.money + dailyReward.money,
+        },
+      });
+      // Cấp thưởng hàng ngày
+      user.money += dailyReward.money;
+      user.meta.rewardDayCollected = [
+        ...rewardDayCollected,
+        { index: parseInt(index), isReward: true },
+      ];
+
+      user.markModified('meta');
+      await user.save();
+      const { pwd_h, ...res_u } = user.toObject();
+      return {
+        success: true,
+        message: `Bạn đã nhận thưởng nhiệm vụ ${parseInt(index, 10) + 1} thành công`,
+        data: res_u,
       };
     } catch (err: any) {
       throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);

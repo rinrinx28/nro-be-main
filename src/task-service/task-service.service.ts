@@ -69,4 +69,12 @@ export class TaskServiceService {
   handlerResetMSG() {
     this.emitEvent2.emitAsync('reset.message', 'run');
   }
+
+  @Cron('0 0 0 * * *', {
+    name: 'reset.vip.daily',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  })
+  handlerResetVIP() {
+    this.emitEvent2.emitAsync('reset.vip.daily', 'run');
+  }
 }

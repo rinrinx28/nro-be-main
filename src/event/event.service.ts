@@ -428,4 +428,81 @@ export class EventService {
       this.logger.log('Err auto reset mini game: ' + err.message);
     }
   }
+
+  @OnEvent('reset.vip.daily', { async: true })
+  async handleResetVIP() {
+    try {
+      const currentDate = moment();
+
+      // Lấy tất cả người dùng có VIP đang hoạt động
+      const users = await this.UserModel.find({ 'meta.vip': { $gt: 0 } });
+
+      for (const user of users) {
+        const { vipExpiryDate, lastActiveDate } = user.meta;
+
+        // Kiểm tra nếu VIP đã quá hạn
+        if (vipExpiryDate && moment(vipExpiryDate).isBefore(currentDate)) {
+          // Quá hạn VIP, reset VIP và điểm tích lũy
+          user.meta.vip = 0;
+          user.meta.totalScore = 0;
+          user.meta.vipStartDate = null;
+          user.meta.vipExpiryDate = null;
+          user.markModified('meta');
+          await user.save();
+
+          // Loại bỏ thông tin nhạy cảm trước khi gửi
+          const { pwd_h, ...res_u } = user.toObject();
+
+          // Gửi cập nhật qua WebSocket
+          this.socketGateway.server.emit('user.update', res_u);
+
+          // Log lại sự kiện
+          this.logger.log(
+            `User ${user._id} VIP expired and reset due to inactivity.`,
+          );
+
+          continue; // Sang người dùng tiếp theo
+        }
+
+        // Kiểm tra nếu người dùng không hoạt động trong 7 ngày
+        if (
+          lastActiveDate &&
+          moment(lastActiveDate).isBefore(currentDate.subtract(7, 'days'))
+        ) {
+          // Người dùng không hoạt động trong 7 ngày, reset VIP và điểm tích lũy
+          user.meta.vip = 0;
+          user.meta.totalScore = 0;
+          user.meta.vipStartDate = null;
+          user.meta.vipExpiryDate = null;
+          user.markModified('meta');
+          await user.save();
+
+          // Loại bỏ thông tin nhạy cảm trước khi gửi
+          const { pwd_h, ...res_u } = user.toObject();
+
+          // Gửi cập nhật qua WebSocket
+          this.socketGateway.server.emit('user.update', res_u);
+
+          // Log lại sự kiện
+          this.logger.log(
+            `User ${user._id} VIP reset due to inactivity for 7 days.`,
+          );
+        }
+      }
+
+      await this.UserModel.updateMany(
+        {},
+        {
+          $set: {
+            'meta.rewardDayCollected': [],
+            'meta.rewardCollected': false,
+          },
+        },
+      );
+      this.socketGateway.server.emit('user.reload', 'ok');
+      this.logger.log('daily VIP check is success');
+    } catch (error) {
+      this.logger.log(`Error in daily VIP check: ${error.message}`);
+    }
+  }
 }
