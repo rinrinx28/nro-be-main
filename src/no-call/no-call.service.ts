@@ -41,9 +41,9 @@ export class NoCallService {
       .sort({ 'meta.totalTrade': -1 })
       .limit(7);
     const res_users = users.map((u) => {
-      const { name, meta } = u.toObject();
+      const { name, meta, _id } = u.toObject();
       const { totalTrade, avatar } = meta;
-      return { name, meta: { totalTrade, avatar } };
+      return { name, meta: { totalTrade, avatar }, _id };
     });
     return res_users;
   }
