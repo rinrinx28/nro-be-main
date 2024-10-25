@@ -501,7 +501,7 @@ export class ServiceService {
       delete res_t_u.pwd_h;
       this.socketGateWay.server.emit('user.update.bulk', [res_o_u, res_t_u]);
       return {
-        message: `Bạn đã chuyển thành công ${new Intl.NumberFormat('vi').format(amount)} cho người chơi ${target.name}`,
+        message: `Bạn đã chuyển thành công ${new Intl.NumberFormat('vi').format(amount)} vàng cho người chơi ${target.name}`,
       };
     } catch (err: any) {
       this.logger.log(`Err Tranfer Money: ${err.message}`);
