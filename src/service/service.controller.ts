@@ -42,6 +42,27 @@ export class ServiceController {
     });
   }
 
+  @Post('/tranfer')
+  async tranferMoney(
+    @Body() body: { targetId: string; amount: number; server: string },
+    @Req() req: any,
+  ) {
+    const user = req.user;
+    return await this.serviceService.tranferMoney({
+      ...body,
+      ownerId: user._id.toString(),
+    });
+  }
+
+  @Post('/exchange')
+  async exchangeDiamon(@Body() body: { diamon: number }, @Req() req: any) {
+    const user = req.user;
+    return await this.serviceService.exchangeDiamon({
+      ...body,
+      ownerId: user._id.toString(),
+    });
+  }
+
   @Get('/history')
   async history(@Req() req: any) {
     const user = req.user;

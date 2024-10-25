@@ -443,4 +443,108 @@ export class ServiceService {
       this.logger.log('Err Remove Service Auto: ', err.message);
     }
   }
+
+  //TODO ———————————————[Tranfer & Diamon]———————————————
+  async tranferMoney(payload: {
+    targetId: string;
+    amount: number;
+    server: string;
+    ownerId: string;
+  }) {
+    try {
+      const { amount, ownerId, server, targetId } = payload;
+      const owner = await this.userService.findUserOption({ _id: ownerId });
+      if (!owner) throw new Error('Người dùng không tồn tại');
+
+      const target = await this.userService.findUserOption({
+        _id: targetId,
+        server: server,
+      });
+      if (!target) throw new Error('Người dùng không tồn tại');
+
+      if (owner.money - amount <= 1)
+        throw new Error('Số dư tối thiểu còn lại là 1 vàng');
+      if (owner.meta.vip < 1) throw new Error('Bạn phải đạt tối thiểu VIP 1');
+      // save active;
+      await this.userService.createUserActive({
+        uid: ownerId,
+        active: {
+          name: 'tranfer_f',
+          m_current: owner.money,
+          m_new: owner.money + amount,
+          toId: targetId,
+          to_meta: target.meta,
+          to_name: target.name,
+        },
+      });
+
+      await this.userService.createUserActive({
+        uid: targetId,
+        active: {
+          name: 'tranfer_t',
+          m_current: target.money,
+          m_new: target.money + amount,
+          fromId: ownerId,
+          from_meta: owner.meta,
+          from_name: owner.name,
+        },
+      });
+      // Update user;
+      owner.money -= amount;
+      target.money += amount;
+      await owner.save();
+      await target.save();
+
+      let res_o_u = owner.toObject();
+      let res_t_u = target.toObject();
+      delete res_o_u.pwd_h;
+      delete res_t_u.pwd_h;
+      this.socketGateWay.server.emit('user.update.bulk', [res_o_u, res_t_u]);
+      return {
+        message: `Bạn đã chuyển thành công ${new Intl.NumberFormat('vi').format(amount)} cho người chơi ${target.name}`,
+      };
+    } catch (err: any) {
+      this.logger.log(`Err Tranfer Money: ${err.message}`);
+      throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  async exchangeDiamon(payload: { diamon: number; ownerId: string }) {
+    try {
+      const { diamon, ownerId } = payload;
+      const e_reward = await this.userService.findConfigWithName('e_reward');
+      const { exchange = 1e6 } = e_reward.option;
+      const owner = await this.userService.findUserOption({ _id: ownerId });
+      if (!owner) throw new Error('Người dùng không tồn tại');
+      if (owner.diamon - diamon < 0)
+        throw new Error('Số Gem của bạn hiện không khả dụng');
+      if (owner.meta.vip < 1) throw new Error('Bạn phải đạt tối thiểu VIP 1');
+
+      let new_money = diamon * exchange;
+      // save active;
+      await this.userService.createUserActive({
+        uid: ownerId,
+        active: {
+          name: 'exchange_diamon',
+          m_current: owner.money,
+          m_new: new_money,
+          d_current: owner.diamon,
+          d_new: owner.diamon - diamon,
+        },
+      });
+
+      owner.diamon -= diamon;
+      owner.money += new_money;
+      await owner.save();
+
+      const { pwd_h, ...res_u } = owner.toObject();
+      this.socketGateWay.server.emit('user.update', res_u);
+      return {
+        message: `Bạn đã đổi thành công ${diamon} Gem thành ${new Intl.NumberFormat('vi').format(new_money)} vàng`,
+      };
+    } catch (err: any) {
+      this.logger.log(`Err Exchange Diamon: ${err.message}`);
+      throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    }
+  }
 }
