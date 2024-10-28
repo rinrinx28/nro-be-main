@@ -138,7 +138,7 @@ export class AuthService {
       const isValiDataUserName = await this.validataUserName(username);
       const isValiDataName = await this.validataName(name);
       const target_finger = await this.FingerPrintModel.findOne({ hash });
-      if (target_finger && target_finger.countAccount.length > 2)
+      if (target_finger && target_finger.countAccount.length > 13)
         throw new Error(
           'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
         );
