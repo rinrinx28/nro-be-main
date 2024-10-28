@@ -18,6 +18,7 @@ import * as moment from 'moment';
 import { UserActive } from 'src/user/schema/userActive.schema';
 import { MiniGame } from 'src/mini-game/schema/mini.schema';
 import { Jackpot } from 'src/mini-game/schema/jackpot';
+import { FingerPrint } from 'src/auth/schema/finger.schema';
 
 @Injectable()
 export class EventService {
@@ -42,6 +43,8 @@ export class EventService {
     private readonly MiniGameModel: Model<MiniGame>,
     @InjectModel(Jackpot.name)
     private readonly JackpotModel: Model<Jackpot>,
+    @InjectModel(FingerPrint.name)
+    private readonly FingerPrintModel: Model<FingerPrint>,
   ) {}
   private logger: Logger = new Logger('Middle Handler');
 
@@ -314,15 +317,20 @@ export class EventService {
             },
           },
         );
-
-        // Reset Score Clan
-        clan.score = 0;
-        clan.markModified('meta');
-        await clan.save();
       }
 
       // Send prize and reset score clan;
       await this.UserActiveModel.insertMany(userActives);
+
+      // reset all score clan
+      await this.clanModel.updateMany(
+        {},
+        {
+          $set: {
+            score: 0,
+          },
+        },
+      );
 
       // send notice;
       await this.MessageModel.insertMany(messages);
@@ -385,6 +393,16 @@ export class EventService {
             'meta.totalTrade': 0,
             'meta.limitTrade': 0,
             'meta.trade': 0,
+          },
+        },
+      );
+
+      // Reset maxAccountInDay
+      await this.FingerPrintModel.updateMany(
+        {},
+        {
+          $set: {
+            maxAccountInDay: 0,
           },
         },
       );

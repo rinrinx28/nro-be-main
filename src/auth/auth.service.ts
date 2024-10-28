@@ -138,9 +138,11 @@ export class AuthService {
       const isValiDataUserName = await this.validataUserName(username);
       const isValiDataName = await this.validataName(name);
       const target_finger = await this.FingerPrintModel.findOne({ hash });
+      if (target_finger && target_finger.maxAccountInDay + 1 > 2)
+        throw new Error('Bạn chỉ có thể tạo đối đa 2 tài khoản trong một ngày');
       if (target_finger && target_finger.countAccount.length > 13)
         throw new Error(
-          'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
+          'Bạn chỉ có thể sở hữu tối đa 13 Tài khoản trên một địa chỉ',
         );
       if (!isValiDataUserName)
         throw new Error('Tên đăng nhập đã được sử dụng!');
@@ -152,7 +154,11 @@ export class AuthService {
       });
       // Save Finger & Create
       if (!target_finger) {
-        await this.FingerPrintModel.create({ hash, countAccount: [user.id] });
+        await this.FingerPrintModel.create({
+          hash,
+          countAccount: [user.id],
+          maxAccountInDay: 1,
+        });
       } else {
         await this.FingerPrintModel.findByIdAndUpdate(
           target_finger.id,
@@ -161,6 +167,9 @@ export class AuthService {
               ...target_finger.countAccount.filter((c) => c !== user.id),
               user.id,
             ],
+            $inc: {
+              maxAccountInDay: +1,
+            },
           },
           { new: true, upsert: true },
         );

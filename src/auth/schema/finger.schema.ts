@@ -13,6 +13,9 @@ export class FingerPrint {
   @Prop({ default: [] })
   countAccount: string[];
 
+  @Prop({ default: 0 })
+  maxAccountInDay: number;
+
   updatedAt?: Date;
   createdAt?: Date;
 }
