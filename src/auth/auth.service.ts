@@ -132,53 +132,50 @@ export class AuthService {
   }
 
   async resigter(payload: Resigter) {
-    const { password, username, name, hash } = payload;
-    const pwd_h = await this.hashPassword(password);
-    const isValiDataUserName = await this.validataUserName(username);
-    const isValiDataName = await this.validataName(name);
-    const target_finger = await this.FingerPrintModel.findOne({ hash });
-    if (target_finger && target_finger.countAccount.length > 2)
-      throw new Error(
-        'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
-      );
-    if (!isValiDataUserName)
-      throw new HttpException(
-        { message: 'Tên đăng nhập đã được sử dụng!', code: 400 },
-        HttpStatus.BAD_REQUEST,
-      );
-    if (!isValiDataName)
-      throw new HttpException(
-        { message: 'Tên hiển thị đã được sử dụng!', code: 400 },
-        HttpStatus.BAD_REQUEST,
-      );
-    const user = await this.userService.createUser({
-      ...payload,
-      pwd_h,
-      money: 5e6,
-    });
-    // Save Finger & Create
-    if (!target_finger) {
-      await this.FingerPrintModel.create({ hash, countAccount: [user.id] });
-    } else {
-      await this.FingerPrintModel.findByIdAndUpdate(
-        target_finger.id,
-        {
-          countAccount: [
-            ...target_finger.countAccount.filter((c) => c !== user.id),
-            user.id,
-          ],
+    try {
+      const { password, username, name, hash } = payload;
+      const pwd_h = await this.hashPassword(password);
+      const isValiDataUserName = await this.validataUserName(username);
+      const isValiDataName = await this.validataName(name);
+      const target_finger = await this.FingerPrintModel.findOne({ hash });
+      if (target_finger && target_finger.countAccount.length > 2)
+        throw new Error(
+          'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
+        );
+      if (!isValiDataUserName)
+        throw new Error('Tên đăng nhập đã được sử dụng!');
+      if (!isValiDataName) throw new Error('Tên hiển thị đã được sử dụng!');
+      const user = await this.userService.createUser({
+        ...payload,
+        pwd_h,
+        money: 5e6,
+      });
+      // Save Finger & Create
+      if (!target_finger) {
+        await this.FingerPrintModel.create({ hash, countAccount: [user.id] });
+      } else {
+        await this.FingerPrintModel.findByIdAndUpdate(
+          target_finger.id,
+          {
+            countAccount: [
+              ...target_finger.countAccount.filter((c) => c !== user.id),
+              user.id,
+            ],
+          },
+          { new: true, upsert: true },
+        );
+      }
+      await this.userService.createUserActive({
+        uid: user.id,
+        active: {
+          name: 'resigter',
+          ip_address: 'updating',
         },
-        { new: true, upsert: true },
-      );
+      });
+      return { message: 'Bạn đã đăng ký thành công', code: 0 };
+    } catch (err: any) {
+      throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
     }
-    await this.userService.createUserActive({
-      uid: user.id,
-      active: {
-        name: 'resigter',
-        ip_address: 'updating',
-      },
-    });
-    return { message: 'Bạn đã đăng ký thành công', code: 0 };
   }
 
   async changePwd(payload: ChangePWD) {
