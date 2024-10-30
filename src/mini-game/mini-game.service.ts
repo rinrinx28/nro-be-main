@@ -119,7 +119,7 @@ export class MiniGameService {
         (sum, a) => sum + (a.amount ?? 0),
         0,
       );
-      let isCurrentServer = ['24', server].includes(user.server);
+      let isCurrentServer = ['24', user.server].includes(server);
 
       // Min
       if (amount < option.min)
