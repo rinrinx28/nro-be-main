@@ -11,6 +11,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'http://localhost:3035',
       'http://localhost:3036',
+      'http://154.26.133.248:3000',
       'https://beta.nrogame.me',
       'https://www.nrogame.me',
       'https://nrogame.me',

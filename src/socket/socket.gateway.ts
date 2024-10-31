@@ -18,6 +18,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
       'http://localhost:3035',
       'http://localhost:3036',
       'https://beta.nrogame.me',
+      'http://154.26.133.248:3000',
     ],
   },
 })
