@@ -117,7 +117,7 @@ export class UserService {
       // Count the total number of documents that match the query
       const totalItems = await this.userBetModel.countDocuments({
         uid: ownerId,
-        server: server,
+        ...(server === 'all' ? {} : { server }),
       });
       return {
         data: userBets,
