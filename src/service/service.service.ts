@@ -453,6 +453,7 @@ export class ServiceService {
   }) {
     try {
       const { amount, ownerId, server, targetId } = payload;
+      const e_shop = await this.userService.findConfigWithName('e_shop');
       const owner = await this.userService.findUserOption({ _id: ownerId });
       if (!owner) throw new Error('Người dùng không tồn tại');
 
@@ -465,6 +466,22 @@ export class ServiceService {
       if (owner.money - amount <= 1)
         throw new Error('Số dư tối thiểu còn lại là 1 vàng');
       if (owner.meta.vip < 1) throw new Error('Bạn phải đạt tối thiểu VIP 1');
+      if (owner?.meta?.rewardDayCollected?.length > 0) {
+        let fee_tranfer = e_shop.option.fee_tranfer;
+        let fee = amount * fee_tranfer;
+        if (owner.money - fee <= 1)
+          throw new Error('Số dư tối thiểu còn lại là 1 vàng');
+        // save active;
+        await this.userService.createUserActive({
+          uid: ownerId,
+          active: {
+            name: 'fee_tranfer',
+            m_current: owner.money,
+            m_new: owner.money - fee,
+          },
+        });
+        owner.money -= fee;
+      }
       // save active;
       await this.userService.createUserActive({
         uid: ownerId,
