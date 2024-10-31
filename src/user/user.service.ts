@@ -109,7 +109,7 @@ export class UserService {
       const { limited, ownerId, page, server } = payload;
       // Fetch the paginated user activities
       const userBets = await this.userBetModel
-        .find({ uid: ownerId, server: server })
+        .find({ uid: ownerId, ...(server === 'all' ? {} : { server }) })
         .sort({ updatedAt: -1 })
         .limit(limited)
         .skip(page * limited);
