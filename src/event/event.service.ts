@@ -280,7 +280,7 @@ export class EventService {
       for (let i = 0; i < clans.length; i++) {
         let clan = clans[i];
         if (clan.score <= 0) break;
-        let prize = prizes[0];
+        let prize = prizes[i];
         let clanId = clan.id;
         let list_m: string[] = [];
         for (const m of members_clans_filter) {
@@ -310,7 +310,7 @@ export class EventService {
           },
           {
             $inc: {
-              money: prize, // Increment the money field by prize
+              money: +prize, // Increment the money field by prize
             },
             $set: {
               'meta.score': 0,
