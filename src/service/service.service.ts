@@ -463,13 +463,13 @@ export class ServiceService {
       });
       if (!target) throw new Error('Người dùng không tồn tại');
 
-      if (owner.money - amount <= 1)
+      if (owner.money - amount < 1)
         throw new Error('Số dư tối thiểu còn lại là 1 vàng');
       if (owner.meta.vip < 1) throw new Error('Bạn phải đạt tối thiểu VIP 1');
       if (owner?.meta?.rewardDayCollected?.length > 0) {
         let fee_tranfer = e_shop.option.fee_tranfer;
         let fee = amount * fee_tranfer;
-        if (owner.money - fee <= 1)
+        if (owner.money - fee < 1)
           throw new Error('Số dư tối thiểu còn lại là 1 vàng');
         // save active;
         await this.userService.createUserActive({
@@ -488,7 +488,7 @@ export class ServiceService {
         active: {
           name: 'tranfer_f',
           m_current: owner.money,
-          m_new: owner.money + amount,
+          m_new: owner.money - amount,
           toId: targetId,
           to_meta: target.meta,
           to_name: target.name,
@@ -507,6 +507,9 @@ export class ServiceService {
         },
       });
       // Update user;
+      owner.meta.trade += amount;
+      owner.meta.limitTrade -= amount;
+      owner.markModified('meta');
       owner.money -= amount;
       target.money += amount;
       await owner.save();
