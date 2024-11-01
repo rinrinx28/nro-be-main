@@ -466,6 +466,10 @@ export class ServiceService {
       if (owner.money - amount < 1)
         throw new Error('Số dư tối thiểu còn lại là 1 vàng');
       if (owner.meta.vip < 1) throw new Error('Bạn phải đạt tối thiểu VIP 1');
+      if (amount > owner.meta.limitTrade)
+        throw new Error(
+          'Bạn không thể rút quá hạn mức hôm nay, xin vui lòng tham gia Minigame để tăng điểm',
+        );
       if (owner?.meta?.rewardDayCollected?.length > 0) {
         let fee_tranfer = e_shop.option.fee_tranfer;
         let fee = amount * fee_tranfer;

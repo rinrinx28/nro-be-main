@@ -284,24 +284,28 @@ export class EventService {
         let clanId = clan.id;
         let list_m: string[] = [];
         for (const m of members_clans_filter) {
-          // Save userActives;
-          userActives.push({
-            uid: m.id,
-            active: {
-              name: 'top_clan',
-              top: i + 1,
-              m_current: m.money,
-              m_new: m.money + prize,
-            },
-          });
+          let meta = m.meta;
+          if (meta.clanId === clanId) {
+            // Save userActives;
+            userActives.push({
+              uid: m.id,
+              active: {
+                name: 'top_clan',
+                top: i + 1,
+                m_current: m.money,
+                m_new: m.money + prize,
+                prize: prize,
+              },
+            });
 
-          // Save prizes
-          list_m.push(m.id);
-          messages.push({
-            content: `Chúc mừng người chơi ${m.name} đã nhận được giải thưởng ${new Intl.NumberFormat('vi').format(prize)} vàng với Clan TOP ${i + 1}: ${clan.meta.name}`,
-            server: 'all',
-            uid: 'local',
-          });
+            // Save prizes
+            list_m.push(m.id);
+            messages.push({
+              content: `Chúc mừng người chơi ${m.name} đã nhận được giải thưởng ${new Intl.NumberFormat('vi').format(prize)} vàng với Clan TOP ${i + 1}: ${clan.meta.name}`,
+              server: 'all',
+              uid: 'local',
+            });
+          }
         }
         await this.UserModel.updateMany(
           {
