@@ -10,18 +10,23 @@ import {
 import { UserService } from './user.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CreateEConfig, UpdateEConfig } from './dto/dto';
+import { RolesGuard } from 'src/admin/enums/roles.guard';
+import { Roles } from 'src/admin/enums/roles.decorator';
+import { Role } from 'src/admin/enums/role.enum';
 
 @Controller('user')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard) // Combine guards
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post('/econfig/create')
+  @Roles(Role.Admin) // add role admin
   async createEConfig(@Body() body: CreateEConfig) {
     return await this.userService.createConfig(body);
   }
 
   @Post('/econfig/update')
+  @Roles(Role.Admin) // add role admin
   async updateEConfig(@Body() body: UpdateEConfig) {
     return await this.userService.updateConfig(body);
   }

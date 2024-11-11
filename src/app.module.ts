@@ -16,6 +16,7 @@ import { EventModule } from './event/event.module';
 import { NoCallModule } from './no-call/no-call.module';
 import { TaskServiceService } from './task-service/task-service.service';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     SocketClientModule,
     EventModule,
     NoCallModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService, TaskServiceService],
