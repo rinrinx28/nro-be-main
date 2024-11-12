@@ -75,7 +75,7 @@ export class ClanService {
       if (owner.money - price[index_price] <= 0)
         throw new Error('Bạn không đủ số dư để tạo Bang Hội');
       // create clan;
-      const clan = await this.clanModel.create(payload);
+      const clan = await this.clanModel.create({ ...payload, member: 1 });
       // save clan in the user;
       owner.money -= price[index_price];
       owner.meta = {
