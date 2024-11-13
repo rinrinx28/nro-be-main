@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
-import { ChangePWD, Resigter } from './dto/dto.auth';
+import { Resigter } from './dto/dto.auth';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')

@@ -21,4 +21,4 @@ import { BotConfig, BotConfigSchema } from './schema/bot-config.schema';
   controllers: [AdminController],
   providers: [AdminService],
 })
-export class AdminModule {}
+export class AdminModule2 {}

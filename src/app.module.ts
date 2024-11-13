@@ -16,7 +16,17 @@ import { EventModule } from './event/event.module';
 import { NoCallModule } from './no-call/no-call.module';
 import { TaskServiceService } from './task-service/task-service.service';
 import { ScheduleModule } from '@nestjs/schedule';
-import { AdminModule } from './admin/admin.module';
+import { AdminModule2 } from './admin/admin.module';
+// import { AdminModule } from '@adminjs/nestjs';
+
+// import * as AdminJSMongoose from '@adminjs/mongoose';
+// import AdminJS from 'adminjs';
+// import { User } from './user/schema/user.schema';
+
+// AdminJS.registerAdapter({
+//   Resource: AdminJSMongoose.Resource,
+//   Database: AdminJSMongoose.Database,
+// });
 
 const DEFAULT_ADMIN = {
   email: 'admin@example.com',
@@ -33,26 +43,24 @@ const authenticate = async (email: string, password: string) => {
 @Module({
   imports: [
     // AdminJS version 7 is ESM-only. In order to import it, you have to use dynamic imports.
-    import('@adminjs/nestjs').then(({ AdminModule }) =>
-      AdminModule.createAdminAsync({
-        useFactory: () => ({
-          adminJsOptions: {
-            rootPath: '/admin',
-            resources: [],
-          },
-          auth: {
-            authenticate,
-            cookieName: 'nro-admin',
-            cookiePassword: 'secret',
-          },
-          sessionOptions: {
-            resave: true,
-            saveUninitialized: true,
-            secret: 'secret',
-          },
-        }),
-      }),
-    ),
+    // AdminModule.createAdminAsync({
+    //   useFactory: () => ({
+    //     adminJsOptions: {
+    //       rootPath: '/admin',
+    //       resources: [User],
+    //     },
+    //     auth: {
+    //       authenticate,
+    //       cookieName: 'nro-admin',
+    //       cookiePassword: 'secret',
+    //     },
+    //     sessionOptions: {
+    //       resave: true,
+    //       saveUninitialized: true,
+    //       secret: 'secret',
+    //     },
+    //   }),
+    // }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -70,7 +78,7 @@ const authenticate = async (email: string, password: string) => {
     SocketClientModule,
     EventModule,
     NoCallModule,
-    AdminModule,
+    AdminModule2,
   ],
   controllers: [AppController],
   providers: [AppService, TaskServiceService],
