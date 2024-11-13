@@ -13,7 +13,7 @@ import {
 } from './dto/dto';
 import { EConfig } from './schema/config.schema';
 import { UserBet } from './schema/userBet.schema';
-import * as moment from 'moment';
+import moment from 'moment';
 
 @Injectable()
 export class UserService {

@@ -14,7 +14,7 @@ import { Model } from 'mongoose';
 import { User } from 'src/user/schema/user.schema';
 import { Message } from 'src/message/schema/message.schema';
 import { ClanMessage } from 'src/clan/schema/msgClan.schema';
-import * as moment from 'moment';
+import moment from 'moment';
 import { UserActive } from 'src/user/schema/userActive.schema';
 import { MiniGame } from 'src/mini-game/schema/mini.schema';
 import { Jackpot } from 'src/mini-game/schema/jackpot';
