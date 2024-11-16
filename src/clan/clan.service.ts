@@ -18,6 +18,7 @@ import {
 import { InviteClan } from './schema/invite.schema';
 import { UserService } from 'src/user/user.service';
 import { SocketGateway } from 'src/socket/socket.gateway';
+import { Mutex } from 'async-mutex';
 
 @Injectable()
 export class ClanService {
@@ -33,6 +34,7 @@ export class ClanService {
   ) {}
 
   private logger: Logger = new Logger('Clan');
+  private readonly mutexMap = new Map<string, Mutex>();
 
   //TODO ———————————————[Chat Clan Zone]———————————————
   async createClanMSG(payload: CreateClanMSG) {
@@ -60,6 +62,15 @@ export class ClanService {
 
   async createClan(payload: CreateClan) {
     const { ownerId, meta } = payload;
+    const parameter = `${ownerId}.createClan`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const e_clan = await this.userService.findConfigWithName('e_clan');
       const { price, type } = e_clan.option;
@@ -97,11 +108,22 @@ export class ClanService {
         `Err Create Clan: Msg: ${err.message} - OwerId: ${ownerId}`,
       );
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   async updateClan(payload: UpdateClan) {
     const { ownerId } = payload;
+    const parameter = `${ownerId}.updateClan`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const e_clan = await this.userService.findConfigWithName('e_clan');
       const { price, type } = e_clan.option;
@@ -155,11 +177,22 @@ export class ClanService {
         `Err Create Clan: Msg: ${err.message} - OwerId: ${ownerId}`,
       );
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   async addMember(payload: AddMember) {
     const { memberId, ownerId } = payload;
+    const parameter = `${ownerId}.addMember`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const e_clan = await this.userService.findConfigWithName('e_clan');
       const { max } = e_clan.option;
@@ -202,11 +235,22 @@ export class ClanService {
         `Err Add Member Clan: CLANID:${payload.clanId} - MEMBERID: ${memberId} - Owner:${ownerId} - Msg: ${err.message}`,
       );
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   async removeMember(payload: RemoveMember) {
     const { memberId, ownerId } = payload;
+    const parameter = `${ownerId}.removeMember`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const member = await this.userService.findUserOption({ _id: memberId });
       if (!member) throw new Error('Người dùng không tồn tại');
@@ -256,11 +300,22 @@ export class ClanService {
         `Err Remove Member: ${memberId} - ClanId: ${payload.clanId} - Msg: ${err.message}`,
       );
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   async delClan(payload: DeleteClan) {
     const { ownerId } = payload;
+    const parameter = `${ownerId}.delClan`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const owner = await this.userService.findUserOption({ _id: ownerId });
       if (!owner) throw new Error('Người dùng không tồn tại');
@@ -296,11 +351,22 @@ export class ClanService {
     } catch (err: any) {
       this.logger.log(`Err Del Clan: ${payload.clanId} - Msg: ${err.message}`);
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   async tranferClan(payload: TranferClan) {
     const { new_ownerId, ownerId } = payload;
+    const parameter = `${ownerId}.tranferClan`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const owner = await this.userService.findUserOption({ _id: ownerId });
       if (!owner.meta.clanId) throw new Error('Bạn không tham gia Bang hội');
@@ -348,12 +414,23 @@ export class ClanService {
         `Err Tranfer Clan: ${payload.clanId} - Msg: ${err.message}`,
       );
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   //TODO ———————————————[Invite Zone]———————————————
   async createInviteClan(payload: CreateInviteClan) {
     const { uid } = payload;
+    const parameter = `${uid}.createInviteClan`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const member = await this.userService.findUserOption({ _id: uid });
       if (!member) throw new Error('Người dùng không tồn tại');
@@ -374,10 +451,21 @@ export class ClanService {
         `Err Send Intive Clan: ${payload.uid} - Msg: ${err.message}`,
       );
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   async Listinvite(clanId: string, ownerId: string) {
+    const parameter = `${clanId}.Listinvite`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const member = await this.userService.findUserOption({ _id: ownerId });
       if (!member) throw new Error('Người dùng không tồn tại');
@@ -393,10 +481,21 @@ export class ClanService {
     } catch (err: any) {
       this.logger.log(`Err List Intive Clan: ${clanId} - Msg: ${err.message}`);
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   async acpectClan(payload: AcpectClan) {
+    const parameter = `${payload.inviteId}.acpectClan`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const { ownerId, inviteId } = payload;
       const owner = await this.userService.findUserOption({ _id: ownerId });
@@ -446,11 +545,22 @@ export class ClanService {
         `Err Acpect Clan: ${payload.inviteId} - Msg: ${err.message}`,
       );
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   async removeInviteClan(payload: RemoveInviteClan) {
     const { inviteId, ownerId } = payload;
+    const parameter = `${payload.inviteId}.removeInviteClan`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const owner = await this.userService.findUserOption({ _id: ownerId });
       if (!owner) throw new Error('Người dùng không tồn tại');
@@ -472,16 +582,29 @@ export class ClanService {
         `Err Remove Invite: ${payload.inviteId} - Msg: ${err.message}`,
       );
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 
   async removeInviteClanWithMemberId(memberId: string) {
+    const parameter = `${memberId}.removeInviteClanWithMemberId`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       await this.inviteClanModel.deleteMany({ uid: memberId });
       this.socketGateway.server.emit('invite.update.member', memberId);
     } catch (err: any) {
       this.logger.log(`Err Remove Invite with MemberId: ${memberId}`);
       this.CutomHexception(err.message);
+    } finally {
+      release();
     }
   }
 

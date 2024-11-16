@@ -19,6 +19,7 @@ import { UserActive } from 'src/user/schema/userActive.schema';
 import { MiniGame } from 'src/mini-game/schema/mini.schema';
 import { Jackpot } from 'src/mini-game/schema/jackpot';
 import { FingerPrint } from 'src/auth/schema/finger.schema';
+import { Mutex } from 'async-mutex';
 
 @Injectable()
 export class EventService {
@@ -47,6 +48,7 @@ export class EventService {
     private readonly FingerPrintModel: Model<FingerPrint>,
   ) {}
   private logger: Logger = new Logger('Middle Handler');
+  private readonly mutexMap = new Map<string, Mutex>();
 
   @OnEvent('bot.status', { async: true })
   async handleBotStatus(payload: Bot) {
@@ -86,6 +88,15 @@ export class EventService {
   @OnEvent('user.chat', { async: true })
   async handleUserChat(payload: UserChat) {
     const { uid, token, content, server } = payload;
+    const parameter = `${uid}.handleUserChat`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const { sub } = await this.jwtService.verifyAsync(token, {
         secret: 'IF YOU WANNA FIND THEM, IT NOT THING!',
@@ -109,12 +120,23 @@ export class EventService {
         status: false,
         token: token,
       });
+    } finally {
+      release();
     }
   }
 
   @OnEvent('user.chat.clan', { async: true })
   async handleUserChatClan(payload: UserChatClan) {
     const { uid, token, content } = payload;
+    const parameter = `${uid}.handleUserChatClan`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const { sub } = await this.jwtService.verifyAsync(token, {
         secret: 'IF YOU WANNA FIND THEM, IT NOT THING!',
@@ -142,6 +164,8 @@ export class EventService {
         status: false,
         token: token,
       });
+    } finally {
+      release();
     }
   }
 

@@ -12,6 +12,7 @@ import { ChangePWD, Resigter } from './dto/dto.auth';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { FingerPrint } from './schema/finger.schema';
+import { Mutex } from 'async-mutex';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,8 @@ export class AuthService {
     private userService: UserService,
     private jwtService: JwtService,
   ) {}
+
+  private readonly mutexMap = new Map<string, Mutex>();
 
   async validateUser(
     username: string,
@@ -132,6 +135,15 @@ export class AuthService {
   }
 
   async resigter(payload: Resigter) {
+    const parameter = `${payload.username}.resigter`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const { password, username, name, hash } = payload;
       const pwd_h = await this.hashPassword(password);
@@ -184,33 +196,50 @@ export class AuthService {
       return { message: 'Bạn đã đăng ký thành công', code: 0 };
     } catch (err: any) {
       throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    } finally {
+      release();
     }
   }
 
   async changePwd(payload: ChangePWD) {
-    const { pwd_c, pwd_n, uid } = payload;
-    const target = await this.userService.findUserOption({ _id: uid });
-    if (!target)
-      throw new HttpException(
-        { message: 'Người dùng không tồn tại', code: 400 },
-        HttpStatus.BAD_REQUEST,
-      );
-    const pwd_n_h = await this.hashPassword(pwd_n);
-    const isMatch = await bcrypt.compare(pwd_c, target.pwd_h);
-    if (!isMatch)
-      throw new HttpException(
-        { message: 'Mật khẩu cũ không đúng', code: 400 },
-        HttpStatus.BAD_REQUEST,
-      );
-    await this.userService.updateUserOption({ _id: uid }, { pwd_h: pwd_n_h });
-    await this.userService.createUserActive({
-      uid: uid,
-      active: {
-        name: 'change_pwd',
-        ip_address: 'updating',
-      },
-    });
-    return { message: 'Bạn đã đổi mật khẩu thành công', code: 0 };
+    const parameter = `${payload.uid}.resigter`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
+    try {
+      const { pwd_c, pwd_n, uid } = payload;
+      const target = await this.userService.findUserOption({ _id: uid });
+      if (!target)
+        throw new HttpException(
+          { message: 'Người dùng không tồn tại', code: 400 },
+          HttpStatus.BAD_REQUEST,
+        );
+      const pwd_n_h = await this.hashPassword(pwd_n);
+      const isMatch = await bcrypt.compare(pwd_c, target.pwd_h);
+      if (!isMatch)
+        throw new HttpException(
+          { message: 'Mật khẩu cũ không đúng', code: 400 },
+          HttpStatus.BAD_REQUEST,
+        );
+      await this.userService.updateUserOption({ _id: uid }, { pwd_h: pwd_n_h });
+      await this.userService.createUserActive({
+        uid: uid,
+        active: {
+          name: 'change_pwd',
+          ip_address: 'updating',
+        },
+      });
+      return { message: 'Bạn đã đổi mật khẩu thành công', code: 0 };
+    } catch (err: any) {
+      throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    } finally {
+      release();
+    }
   }
 
   async autoFinger(hash: string) {

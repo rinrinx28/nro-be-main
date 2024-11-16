@@ -10,6 +10,7 @@ import { SocketGateway } from 'src/socket/socket.gateway';
 import { UserBet } from 'src/user/schema/userBet.schema';
 import { MessageService } from 'src/message/message.service';
 import { Jackpot } from './schema/jackpot';
+import { Mutex } from 'async-mutex';
 @Injectable()
 export class MiniGameService {
   constructor(
@@ -24,9 +25,19 @@ export class MiniGameService {
   ) {}
 
   private logger: Logger = new Logger('MiniGame');
+  private readonly mutexMap = new Map<string, Mutex>();
 
   async placeBet(payload: Place) {
     const { betId, uid, amount, place, server, typeBet } = payload;
+    const parameter = `${uid}.place.bet`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       // Check Minigame is avaible
       const e_bet = await this.userService.findConfigWithName('e_bet');
@@ -270,11 +281,22 @@ export class MiniGameService {
         { message: err.message, code: 400 },
         HttpStatus.BAD_REQUEST,
       );
+    } finally {
+      release();
     }
   }
 
   async cancelPlaceBet(payload: Cancel) {
     const { userBetId, uid } = payload;
+    const parameter = `${uid}.cancel.bet`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const e_bet = await this.userService.findConfigWithName('e_bet');
       const option = e_bet.option;
@@ -431,6 +453,8 @@ export class MiniGameService {
         { message: err.message, code: 400 },
         HttpStatus.BAD_REQUEST,
       );
+    } finally {
+      release();
     }
   }
 

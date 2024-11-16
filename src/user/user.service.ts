@@ -13,7 +13,7 @@ import {
 } from './dto/dto';
 import { EConfig } from './schema/config.schema';
 import { UserBet } from './schema/userBet.schema';
-import moment from 'moment';
+import { Mutex } from 'async-mutex';
 
 @Injectable()
 export class UserService {
@@ -28,6 +28,7 @@ export class UserService {
     private readonly userBetModel: Model<UserBet>,
   ) {}
 
+  private readonly mutexMap = new Map<string, Mutex>();
   // TODO User Zone
   async createUser(payload: CreateUser) {
     return await this.userModel.create(payload);
@@ -166,6 +167,15 @@ export class UserService {
   //TODO ———————————————[Reward]———————————————
   // Xử lý nhận thưởng VIP
   async claimVipReward(userId: string) {
+    const parameter = `${userId}.claimVipReward`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const user = await this.userModel.findById(userId);
       if (!user) throw new Error('User not found');
@@ -217,11 +227,22 @@ export class UserService {
       };
     } catch (err: any) {
       throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    } finally {
+      release();
     }
   }
 
   // Xử lý nhận thưởng hàng ngày
   async claimDailyReward(userId: string, index: string) {
+    const parameter = `${userId}.claimDailyReward`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const user = await this.userModel.findById(userId);
       if (!user) throw new Error('Người dùng không tồn tại');
@@ -281,6 +302,8 @@ export class UserService {
       };
     } catch (err: any) {
       throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    } finally {
+      release();
     }
   }
 }

@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 import { UserService } from 'src/user/user.service';
 import { CancelService, CreateService } from './dto/dto.service';
 import { SocketGateway } from 'src/socket/socket.gateway';
+import { Mutex } from 'async-mutex';
 
 @Injectable()
 export class ServiceService {
@@ -17,9 +18,19 @@ export class ServiceService {
 
   private logger: Logger = new Logger('Service');
   private mapService: Map<string, any> = new Map();
+  private readonly mutexMap = new Map<string, Mutex>();
 
   async handlerCreate(payload: CreateService) {
     const { amount, playerName, type, uid, server } = payload;
+    const parameter = `${uid}.create.service`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const e_shop = await this.userService.findConfigWithName('e_shop');
       if (!e_shop) throw new Error('Không tìm thấy cài đặt e_shop');
@@ -177,11 +188,22 @@ export class ServiceService {
         { message: error.message, code: 400 },
         HttpStatus.BAD_REQUEST,
       );
+    } finally {
+      release();
     }
   }
 
   async handlerUpdate(payload: CancelService) {
     const { serviceId, uid } = payload;
+    const parameter = `${uid}.update.service`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const target_s = await this.serviceModel.findById(serviceId);
       if (!target_s) throw new Error('Mã giao dịch không tồn tại');
@@ -288,10 +310,21 @@ export class ServiceService {
         { message: err.message, code: 400 },
         HttpStatus.BAD_REQUEST,
       );
+    } finally {
+      release();
     }
   }
 
   async handlerCancelLocal(serviceId: string) {
+    const parameter = `${serviceId}.cancel.service.local`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const target_s = await this.serviceModel.findById(serviceId);
       if (!target_s) throw new Error('Service not found');
@@ -391,11 +424,22 @@ export class ServiceService {
     } catch (err: any) {
       this.logger.log('Err Cancel Service Auto: ', err.message);
       this.removeCancel(serviceId);
+    } finally {
+      release();
     }
   }
 
   async history(payload: { page: number; limited: number; ownerId: string }) {
     const { ownerId, page, limited } = payload;
+    const parameter = `${ownerId}.view.service.history`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       // Fetch the paginated user activities
       const services = await this.serviceModel
@@ -419,6 +463,8 @@ export class ServiceService {
     } catch (err: any) {
       this.logger.log(`Err History: ${ownerId} - Msg: ${err.message}`);
       throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    } finally {
+      release();
     }
   }
 
@@ -451,6 +497,15 @@ export class ServiceService {
     server: string;
     ownerId: string;
   }) {
+    const parameter = `${payload.ownerId}.tranferMoney`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const { amount, ownerId, server, targetId } = payload;
       const e_shop = await this.userService.findConfigWithName('e_shop');
@@ -530,10 +585,21 @@ export class ServiceService {
     } catch (err: any) {
       this.logger.log(`Err Tranfer Money: ${err.message}`);
       throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    } finally {
+      release();
     }
   }
 
   async exchangeDiamon(payload: { diamon: number; ownerId: string }) {
+    const parameter = `${payload.ownerId}.exchangeDiamon`; // Value will be lock
+
+    // Create mutex if it not exist
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
     try {
       const { diamon, ownerId } = payload;
       const e_reward = await this.userService.findConfigWithName('e_reward');
@@ -569,6 +635,8 @@ export class ServiceService {
     } catch (err: any) {
       this.logger.log(`Err Exchange Diamon: ${err.message}`);
       throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+    } finally {
+      release();
     }
   }
 }
