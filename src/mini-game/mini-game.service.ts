@@ -29,7 +29,7 @@ export class MiniGameService {
 
   async placeBet(payload: Place) {
     const { betId, uid, amount, place, server, typeBet } = payload;
-    const parameter = `${uid}.place.bet`; // Value will be lock
+    const parameter = `place.bet`; // Value will be lock
 
     // Create mutex if it not exist
     if (!this.mutexMap.has(parameter)) {
@@ -288,7 +288,7 @@ export class MiniGameService {
 
   async cancelPlaceBet(payload: Cancel) {
     const { userBetId, uid } = payload;
-    const parameter = `${uid}.cancel.bet`; // Value will be lock
+    const parameter = `cancel.bet`; // Value will be lock
 
     // Create mutex if it not exist
     if (!this.mutexMap.has(parameter)) {

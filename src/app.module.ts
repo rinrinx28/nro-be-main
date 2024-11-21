@@ -17,6 +17,8 @@ import { NoCallModule } from './no-call/no-call.module';
 import { TaskServiceService } from './task-service/task-service.service';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AdminModule2 } from './admin/admin.module';
+import { RedisModule } from './redis/redis.module';
+import { QueuesModule } from './queues/queues.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { AdminModule2 } from './admin/admin.module';
     EventModule,
     NoCallModule,
     AdminModule2,
+    RedisModule,
+    QueuesModule,
   ],
   controllers: [AppController],
   providers: [AppService, TaskServiceService],

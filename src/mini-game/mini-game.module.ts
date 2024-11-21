@@ -8,6 +8,7 @@ import { UserModule } from 'src/user/user.module';
 import { SocketClientModule } from 'src/socket/socket.module';
 import { MessageModule } from 'src/message/message.module';
 import { Jackpot, JackpotSchema } from './schema/jackpot';
+import { RedisModule } from 'src/redis/redis.module';
 
 @Module({
   imports: [
@@ -25,5 +26,6 @@ import { Jackpot, JackpotSchema } from './schema/jackpot';
 
   controllers: [MiniGameController],
   providers: [MiniGameService],
+  exports: [MiniGameService],
 })
 export class MiniGameModule {}

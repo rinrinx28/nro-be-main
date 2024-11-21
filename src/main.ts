@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './filters/allExceptions.filter';
+import { RedisConsumerService } from './redis/redis-consumer.service';
 
 async function bootstrap() {
   const port = 3037;
@@ -23,6 +24,18 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
   // Apply the global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Bắt đầu consumer xử lý hàng đợi
+  const redisConsumer = app.get(RedisConsumerService);
+  // Danh sách hàng chờ
+  const queues = [
+    'cancelPlaceBetQueue',
+    'processOrderQueue',
+    'sendNotificationQueue',
+  ];
+
+  // Khởi động xử lý nhiều hàng chờ
+  await redisConsumer.processAllQueues(queues);
   await app.listen(port);
 }
 bootstrap();
