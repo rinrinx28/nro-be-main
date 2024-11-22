@@ -193,14 +193,15 @@ export class EventService {
       e_bet.markModified('option.enable');
 
       await e_bet.save();
-      this.logger.log('Auto Off Mini Game Client: Success');
 
-      this.MessageModel.create({
+      const msg = await this.MessageModel.create({
         uid: 'local',
         content:
-          'Bảo trì tự động toàn bộ Máy chủ Game, chúc mọi người một ngày tốt lành!',
+          'Bảo trì toàn bộ Máy chủ Game, chúc mọi người một ngày tốt lành!',
         server: 'all',
       });
+      this.socketGateway.server.emit('message.re', msg);
+      this.logger.log('Auto Off Mini Game Client: Success');
     } catch (err: any) {
       this.logger.log('Err Auto Off Mini Game Client: ' + err.message);
     }
@@ -219,13 +220,14 @@ export class EventService {
       e_bet.markModified('option.enable');
 
       await e_bet.save();
-      this.logger.log('Auto On Mini Game Client: Success');
-      this.MessageModel.create({
+      const msg = await this.MessageModel.create({
         uid: 'local',
         content:
           'Hoàn tất bảo trì tự động toàn bộ Máy chủ Game, chúc mọi người một ngày tốt lành!',
         server: 'all',
       });
+      this.socketGateway.server.emit('message.re', msg);
+      this.logger.log('Auto On Mini Game Client: Success');
     } catch (err: any) {
       this.logger.log('Err Auto On Mini Game Client: ' + err.message);
     }
@@ -239,13 +241,14 @@ export class EventService {
       e_bet.option.enable24 = false;
       e_bet.markModified('option.enable24');
       await e_bet.save();
-      this.logger.log('Auto Turn Off Minigame 24');
-      this.MessageModel.create({
+      const msg = await this.MessageModel.create({
         uid: 'local',
         content:
           'Bảo trì tự động Máy Chủ 24 trong 2p, chúc mọi người một ngày tốt lành!',
         server: 'all',
       });
+      this.socketGateway.server.emit('message.re', msg);
+      this.logger.log('Auto Turn Off Minigame 24');
     } catch (err: any) {
       this.logger.log('Err Auto Turn Off Minigame 24: ' + err.message);
     }
@@ -259,13 +262,14 @@ export class EventService {
       e_bet.option.enable24 = true;
       e_bet.markModified('option.enable24');
       await e_bet.save();
-      this.logger.log('Auto Turn On Minigame 24');
-      this.MessageModel.create({
+      const msg = await this.MessageModel.create({
         uid: 'local',
         content:
           'Bảo trì tự động hoàn tất Máy Chủ 24, chúc mọi người một ngày thật nhiều may mắn!',
         server: 'all',
       });
+      this.socketGateway.server.emit('message.re', msg);
+      this.logger.log('Auto Turn On Minigame 24');
     } catch (err: any) {
       this.logger.log('Err Auto Turn On Minigame 24: ' + err.message);
     }
@@ -274,83 +278,94 @@ export class EventService {
   @OnEvent('top.clan', { async: true })
   async handlerTopClan() {
     try {
+      // Step 1: Retrieve configuration
       const e_clan = await this.userService.findConfigWithName('e_clan');
       if (!e_clan) throw new Error('Không tìm thấy e_clan');
       const { prizes, require_m, require_join } = e_clan.option;
+
+      // Step 2: Get top clans
       const clans = await this.clanModel
         .find({})
         .sort({ score: -1 })
-        .limit(prizes.length ?? 4);
-      const list_top_clanId = clans.map((c) => c.id);
+        .limit(prizes.length || 4);
+      const topClanIds = clans.map((c) => c.id);
 
-      // find user of clanId
-      const members_clans = await this.UserModel.find({
-        'meta.clanId': {
-          $in: list_top_clanId,
-        },
+      // Step 3: Get eligible members
+      const members = await this.UserModel.find({
+        'meta.clanId': { $in: topClanIds },
       });
 
-      // Filter all user have score > require_m and join after require_join
-      const members_clans_filter = members_clans.filter(
-        (m) =>
-          m.meta.score >= require_m &&
-          moment().unix() - moment(m.meta.timeJoin).unix() > require_join,
-      );
+      const now = moment().unix();
+      const eligibleMembers = members.filter((m) => {
+        const { score, timeJoin } = m.meta;
+        return (
+          score >= require_m && now - moment(timeJoin).unix() > require_join
+        );
+      });
 
-      // Let send prizes and save useActives;
-      let userActives: { uid: string; active: Record<string, any> }[] = [];
-      let messages: { uid: 'local'; content: string; server: 'all' }[] = [];
+      // Step 4: Prepare updates and notifications
+      const userActives: { uid: string; active: Record<string, any> }[] = [];
+      const messages: { uid: 'local'; content: string; server: 'all' }[] = [];
+      const userUpdates = [];
 
       for (let i = 0; i < clans.length; i++) {
-        let clan = clans[i];
+        const clan = clans[i];
         if (clan.score <= 0) break;
-        let prize = prizes[i];
-        let clanId = clan.id;
-        let list_m: string[] = [];
-        for (const m of members_clans_filter) {
-          let meta = m.meta;
-          if (meta.clanId === clanId) {
-            // Save userActives;
-            userActives.push({
-              uid: m.id,
-              active: {
-                name: 'top_clan',
-                top: i + 1,
-                m_current: m.money,
-                m_new: m.money + prize,
-                prize: prize,
-              },
-            });
+        const prize = prizes[i] || 0;
 
-            // Save prizes
-            list_m.push(m.id);
-            messages.push({
-              content: `Chúc mừng người chơi ${m.name} đã nhận được giải thưởng ${new Intl.NumberFormat('vi').format(prize)} vàng với Clan TOP ${i + 1}: ${clan.meta.name}`,
-              server: 'all',
-              uid: 'local',
-            });
-          }
-        }
-        await this.UserModel.updateMany(
-          {
-            'meta.clanId': clanId, // Filter by clanId inside the 'meta' field
-            _id: { $in: list_m }, // Use $in operator to match _id from the list
-          },
-          {
-            $inc: {
-              money: +prize, // Increment the money field by prize
-            },
-            $set: {
-              'meta.score': 0,
-            },
-          },
+        const clanMembers = eligibleMembers.filter(
+          (m) => m.meta.clanId === clan.id,
         );
+
+        clanMembers.forEach((member) => {
+          // Record user activity
+          userActives.push({
+            uid: member.id,
+            active: {
+              name: 'top_clan',
+              top: i + 1,
+              m_current: member.money,
+              m_new: member.money + prize,
+              prize,
+            },
+          });
+
+          // Create notification
+          messages.push({
+            content: `Chúc mừng người chơi ${member.name} đã nhận được giải thưởng ${new Intl.NumberFormat(
+              'vi',
+            ).format(prize)} vàng với Clan TOP ${i + 1}: ${clan.meta.name}`,
+            server: 'all',
+            uid: 'local',
+          });
+
+          // Update user money and score
+          userUpdates.push({
+            updateOne: {
+              filter: { _id: member.id },
+              update: { $inc: { money: +prize }, $set: { 'meta.score': 0 } },
+            },
+          });
+        });
       }
 
-      // Send prize and reset score clan;
-      await this.UserActiveModel.insertMany(userActives);
+      // Step 5: Apply updates and insert logs
+      if (userUpdates.length > 0) {
+        await this.UserModel.bulkWrite(userUpdates);
+      }
 
-      // reset all score clan
+      if (userActives.length > 0) {
+        await this.UserActiveModel.insertMany(userActives);
+      }
+
+      if (messages.length > 0) {
+        const msg = await this.MessageModel.insertMany(messages); // Save messages
+        for (const m of msg) {
+          this.socketGateway.server.emit('message.re', m);
+        }
+      }
+
+      // Step 6: Reset clans
       await this.clanModel.updateMany(
         {},
         {
@@ -360,60 +375,97 @@ export class EventService {
         },
       );
 
-      // send notice;
-      await this.MessageModel.insertMany(messages);
-
-      // Send Client reload User and Clan;
+      // Step 7: Notify clients
       this.socketGateway.server.emit('user.reload', 'ok');
       this.socketGateway.server.emit('clan.reload', 'ok');
+
+      this.logger.log('Top Clan rewards successfully distributed!');
     } catch (err: any) {
-      this.logger.log('Err Top Clan Auto: ' + err.message);
+      this.logger.error('Error during Top Clan handling: ' + err.message);
     }
   }
 
   @OnEvent('top.user', { async: true })
   async handleTopUser() {
     try {
+      // Step 1: Retrieve configuration
       const e_user_rank =
         await this.userService.findConfigWithName('e_user_rank');
       if (!e_user_rank) throw new Error('Không tìm thấy e_user_rank');
       const { winer = 7, prizes, require_s } = e_user_rank.option;
-      const list_users_top = await this.UserModel.find()
+
+      // Step 2: Get top users meeting the requirements
+      const topUsers = await this.UserModel.find({
+        'meta.totalTrade': { $gt: require_s },
+      })
         .sort({ 'meta.totalTrade': -1 })
         .limit(winer);
 
-      const list_users_filter = list_users_top.filter(
-        (u) => u.meta.totalTrade > require_s,
-      );
+      // Step 3: Prepare updates, activities, and messages
+      const userUpdates = [];
+      const userActives = [];
+      const messages = [];
+      const now = new Date();
 
-      // let send prizes for user and send notice;
-      let messages: { uid: 'local'; content: string; server: 'all' }[] = [];
-      list_users_filter.forEach(async (u, i) => {
-        let prize = prizes[i];
-        messages.push({
-          uid: 'local',
-          content: `Chúc mừng người chơi ${u.name} đã nhận được ${new Intl.NumberFormat('vi').format(prize)} vàng từ giải thưởng TOP ${i + 1} Ngày`,
-          server: 'all',
-        });
-        await this.UserActiveModel.create({
-          uid: u.id,
-          active: {
-            name: 'top_day',
-            top: i + 1,
-            prize: prize,
-            m_current: u.money,
-            m_new: u.money + prize,
+      topUsers.forEach((user, index) => {
+        const prize = prizes[index] || 0; // Default to 0 if prize is undefined
+
+        // Prepare user update
+        userUpdates.push({
+          updateOne: {
+            filter: { _id: user._id },
+            update: {
+              $inc: { money: prize },
+            },
           },
         });
 
-        u.money += prize;
-        await u.save();
+        // Prepare activity log
+        userActives.push({
+          uid: user.id,
+          active: {
+            name: 'top_day',
+            top: index + 1,
+            prize: prize,
+            m_current: user.money,
+            m_new: user.money + prize,
+            timestamp: now,
+          },
+        });
+
+        // Prepare notification message
+        messages.push({
+          uid: 'local',
+          content: `Chúc mừng người chơi ${user.name} đã nhận được ${new Intl.NumberFormat(
+            'vi',
+          ).format(prize)} vàng từ giải thưởng TOP ${index + 1} Ngày`,
+          server: 'all',
+        });
       });
 
-      // Send Notice;
-      await this.MessageModel.insertMany(messages);
+      // Step 4: Execute bulk operations
+      if (userUpdates.length > 0) {
+        await this.UserModel.bulkWrite(userUpdates); // Bulk update user data
+      }
 
-      // Reset All Score User;
+      if (userActives.length > 0) {
+        await this.UserActiveModel.insertMany(userActives); // Save activity logs
+      }
+
+      if (messages.length > 0) {
+        const msg = await this.MessageModel.insertMany(messages); // Save messages
+        for (const m of msg) {
+          this.socketGateway.server.emit('message.re', m);
+        }
+      }
+
+      // Step 5: Reset fingerprint daily limits
+      await this.FingerPrintModel.updateMany(
+        {},
+        { $set: { maxAccountInDay: 0 } },
+      );
+
+      // Step 6: Reset all user score
       await this.UserModel.updateMany(
         {},
         {
@@ -425,21 +477,11 @@ export class EventService {
         },
       );
 
-      // Reset maxAccountInDay
-      await this.FingerPrintModel.updateMany(
-        {},
-        {
-          $set: {
-            maxAccountInDay: 0,
-          },
-        },
-      );
-
-      // Send Event to clien for Reload User;
+      // Step 7: Notify clients and log success
       this.socketGateway.server.emit('user.reload', 'ok');
-      this.logger.log('Auto TOP User');
+      this.logger.log('Auto TOP User completed successfully.');
     } catch (err: any) {
-      this.logger.log('Err Top User: ' + err.message);
+      this.logger.error('Error during TOP User handling: ' + err.message);
     }
   }
 
@@ -457,8 +499,23 @@ export class EventService {
   @OnEvent('reset.mini.game', { async: true })
   async handleResetMinigame() {
     try {
-      await this.MiniGameModel.updateMany(
+      // Get current date and calculate yesterday's date
+      const currentDate = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(currentDate.getDate() - 1);
+
+      // Set the time to match the ISODate format
+      yesterday.setHours(0, 0, 0, 0); // Start of yesterday
+      currentDate.setHours(0, 0, 0, 0); // Start of today
+
+      this.logger.log(
+        `Finding documents between ${yesterday.toISOString()} and ${currentDate.toISOString()}`,
+      );
+
+      // Perform the query with ISODate compatibility
+      const result = await this.MiniGameModel.updateMany(
         {
+          createdAt: { $gte: yesterday, $lt: currentDate }, // Replace 'dateField' with your actual ISODate field
           server: {
             $in: ['1', '2', '3', '4', '5', '6', '7', '8', '11', '12', '13'],
           },
@@ -469,7 +526,10 @@ export class EventService {
           },
         },
       );
-      this.logger.log('Auto Reset Mini game is Success!');
+
+      this.logger.log(
+        `Auto Reset Mini Game Success! ${result.modifiedCount} documents were updated.`,
+      );
     } catch (err: any) {
       this.logger.log('Err auto reset mini game: ' + err.message);
     }
@@ -480,62 +540,83 @@ export class EventService {
     try {
       const currentDate = moment();
 
-      // Lấy tất cả người dùng có VIP đang hoạt động
+      // Get all users with active VIP
       const users = await this.UserModel.find({ 'meta.vip': { $gt: 0 } });
+
+      const userUpdates = [];
+      const userActives = [];
+      const resetFields = {
+        'meta.vip': 0,
+        'meta.totalScore': 0,
+        'meta.vipStartDate': null,
+        'meta.vipExpiryDate': null,
+      };
 
       for (const user of users) {
         const { vipExpiryDate, lastActiveDate } = user.meta;
 
-        // Kiểm tra nếu VIP đã quá hạn
-        if (vipExpiryDate && moment(vipExpiryDate).isBefore(currentDate)) {
-          // Quá hạn VIP, reset VIP và điểm tích lũy
-          user.meta.vip = 0;
-          user.meta.totalScore = 0;
-          user.meta.vipStartDate = null;
-          user.meta.vipExpiryDate = null;
-          user.markModified('meta');
-          await user.save();
+        // Check if VIP has expired
+        if (vipExpiryDate && moment(`${vipExpiryDate}`).isBefore(currentDate)) {
+          // Add to bulk update
+          userUpdates.push({
+            updateOne: {
+              filter: { _id: user._id },
+              update: { $set: resetFields },
+            },
+          });
 
-          // Loại bỏ thông tin nhạy cảm trước khi gửi
-          const { pwd_h, ...res_u } = user.toObject();
+          // Prepare userActive
+          userActives.push({
+            uid: user.id,
+            active: {
+              name: 'vip_expired',
+              v_current: user.meta.vip,
+              v_n: 0,
+              m_current: user.money,
+              m_new: user.money,
+            },
+          });
 
-          // Gửi cập nhật qua WebSocket
-          this.socketGateway.server.emit('user.update', res_u);
-
-          // Log lại sự kiện
-          this.logger.log(
-            `User ${user._id} VIP expired and reset due to inactivity.`,
-          );
-
-          continue; // Sang người dùng tiếp theo
+          continue;
         }
 
-        // Kiểm tra nếu người dùng không hoạt động trong 7 ngày
+        // Check if user has been inactive for 7 days
         if (
           lastActiveDate &&
-          moment(lastActiveDate).isBefore(currentDate.subtract(7, 'days'))
+          moment(lastActiveDate).isBefore(moment().subtract(7, 'days'))
         ) {
-          // Người dùng không hoạt động trong 7 ngày, reset VIP và điểm tích lũy
-          user.meta.vip = 0;
-          user.meta.totalScore = 0;
-          user.meta.vipStartDate = null;
-          user.meta.vipExpiryDate = null;
-          user.markModified('meta');
-          await user.save();
+          // Add to bulk update
+          userUpdates.push({
+            updateOne: {
+              filter: { _id: user._id },
+              update: { $set: resetFields },
+            },
+          });
 
-          // Loại bỏ thông tin nhạy cảm trước khi gửi
-          const { pwd_h, ...res_u } = user.toObject();
-
-          // Gửi cập nhật qua WebSocket
-          this.socketGateway.server.emit('user.update', res_u);
-
-          // Log lại sự kiện
-          this.logger.log(
-            `User ${user._id} VIP reset due to inactivity for 7 days.`,
-          );
+          // Prepare userActive
+          userActives.push({
+            uid: user.id,
+            active: {
+              name: 'vip_inactive',
+              v_current: user.meta.vip,
+              v_n: 0,
+              m_current: user.money,
+              m_new: user.money,
+            },
+          });
         }
       }
 
+      // Perform bulk updates
+      if (userUpdates.length > 0) {
+        await this.UserModel.bulkWrite(userUpdates);
+      }
+
+      if (userActives.length > 0) {
+        await this.UserActiveModel.insertMany(userActives);
+      }
+
+      // Reset daily reward collection
       await this.UserModel.updateMany(
         {},
         {
@@ -545,10 +626,12 @@ export class EventService {
           },
         },
       );
+
+      // Notify clients for a global user reload
       this.socketGateway.server.emit('user.reload', 'ok');
-      this.logger.log('daily VIP check is success');
+      this.logger.log('Daily VIP check completed successfully.');
     } catch (error) {
-      this.logger.log(`Error in daily VIP check: ${error.message}`);
+      this.logger.error(`Error in daily VIP check: ${error.message}`);
     }
   }
 }
