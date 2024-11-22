@@ -25,40 +25,21 @@ export class MiniGameController {
   @UseGuards(JwtAuthGuard)
   async place(@Body() body: Place, @Req() req: any) {
     const user = req.user;
-    const mutex = await this.getMutex(user._id.toString());
-    const release = await mutex.acquire();
-    try {
-      return await this.miniGameService.placeBet({ ...body, uid: user._id });
-    } finally {
-      release();
-    }
+    return await this.miniGameService.placeBet({ ...body, uid: user._id });
   }
 
   @Post('/v2/place')
   async place_bot(@Body() body: Place) {
-    const mutex = await this.getMutex(body.uid || 'bot');
-    const release = await mutex.acquire();
-    try {
-      return await this.miniGameService.placeBet({ ...body });
-    } finally {
-      release();
-    }
+    return await this.miniGameService.placeBet({ ...body });
   }
 
   @Post('/cancel')
   @UseGuards(JwtAuthGuard)
   async cancel(@Body() body: Cancel, @Req() req: any) {
     const user = req.user;
-    const mutex = await this.getMutex(user._id.toString());
-    const release = await mutex.acquire();
-    try {
-      await this.redisProducer.addToQueue('cancelPlaceBetQueue', {
-        ...body,
-        uid: user._id,
-      });
-      return { message: 'Lệnh hủy của bạn đang được xử lý' };
-    } finally {
-      release();
-    }
+    return await this.miniGameService.cancelPlaceBet({
+      ...body,
+      uid: user._id,
+    });
   }
 }

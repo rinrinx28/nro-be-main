@@ -28,32 +28,20 @@ export class ServiceController {
   @Post('/create')
   async handlerCreate(@Body() body: CreateServiceController, @Req() req: any) {
     const user = req.user;
-    const mutex = await this.getMutex(user._id.toString());
-    const release = await mutex.acquire();
-    try {
-      return await this.serviceService.handlerCreate({
-        ...body,
-        amount: Number(body.amount),
-        uid: user._id.toString(),
-      });
-    } finally {
-      release();
-    }
+    return await this.serviceService.handlerCreate({
+      ...body,
+      amount: Number(body.amount),
+      uid: user._id.toString(),
+    });
   }
 
   @Post('/cancel')
   async handlerCancel(@Body() body: CancelServiceController, @Req() req: any) {
     const user = req.user;
-    const mutex = await this.getMutex(user._id.toString());
-    const release = await mutex.acquire();
-    try {
-      return await this.serviceService.handlerUpdate({
-        ...body,
-        uid: user._id.toString(),
-      });
-    } finally {
-      release();
-    }
+    return await this.serviceService.handlerUpdate({
+      ...body,
+      uid: user._id.toString(),
+    });
   }
 
   @Post('/tranfer')
@@ -62,47 +50,29 @@ export class ServiceController {
     @Req() req: any,
   ) {
     const user = req.user;
-    const mutex = await this.getMutex(user._id.toString());
-    const release = await mutex.acquire();
-    try {
-      return await this.serviceService.tranferMoney({
-        ...body,
-        ownerId: user._id.toString(),
-      });
-    } finally {
-      release();
-    }
+    return await this.serviceService.tranferMoney({
+      ...body,
+      ownerId: user._id.toString(),
+    });
   }
 
   @Post('/exchange')
   async exchangeDiamon(@Body() body: { diamon: number }, @Req() req: any) {
     const user = req.user;
-    const mutex = await this.getMutex(user._id.toString());
-    const release = await mutex.acquire();
-    try {
-      return await this.serviceService.exchangeDiamon({
-        ...body,
-        ownerId: user._id.toString(),
-      });
-    } finally {
-      release();
-    }
+    return await this.serviceService.exchangeDiamon({
+      ...body,
+      ownerId: user._id.toString(),
+    });
   }
 
   @Get('/history')
   async history(@Req() req: any) {
     const user = req.user;
     const { page = 0, limited = 25 } = req.query;
-    const mutex = await this.getMutex(user._id.toString());
-    const release = await mutex.acquire();
-    try {
-      return await this.serviceService.history({
-        page: Number(page),
-        limited: Number(limited),
-        ownerId: user._id.toString(),
-      });
-    } finally {
-      release();
-    }
+    return await this.serviceService.history({
+      page: Number(page),
+      limited: Number(limited),
+      ownerId: user._id.toString(),
+    });
   }
 }
