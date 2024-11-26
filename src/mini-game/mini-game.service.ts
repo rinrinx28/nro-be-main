@@ -394,6 +394,9 @@ export class MiniGameService {
           userBetId,
           m_current: user.money,
           m_new: user.money + refund_money,
+          betId: a_game.id,
+          amount: userBet.amount,
+          place: userBet.place,
         },
       });
 
