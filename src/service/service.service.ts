@@ -253,10 +253,12 @@ export class ServiceService {
       const sanitizedUser = this.sanitizeUser(target_u);
 
       // Emit updates via WebSocket
-      this.socketGateWay.server.emit('updates', {
-        service: target_s.toObject(),
-        user: sanitizedUser,
-      });
+      // this.socketGateWay.server.emit('updates', {
+      //   service: target_s.toObject(),
+      //   user: sanitizedUser,
+      // });
+      this.socketGateWay.server.emit('service.update', target_s.toObject());
+      this.socketGateWay.server.emit('user.update', sanitizedUser);
 
       this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
       this.socketGateWayAuth.server.emit('service.cancel.re', {
