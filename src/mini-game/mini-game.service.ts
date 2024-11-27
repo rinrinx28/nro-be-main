@@ -12,6 +12,7 @@ import { MessageService } from 'src/message/message.service';
 import { Jackpot } from './schema/jackpot';
 import { Mutex } from 'async-mutex';
 import { OnEvent } from '@nestjs/event-emitter';
+import { SocketGatewayAuth } from 'src/socket/socket.gateway.jwt';
 @Injectable()
 export class MiniGameService {
   constructor(
@@ -22,6 +23,7 @@ export class MiniGameService {
     private userService: UserService,
     private socketClientService: SocketClientService,
     private socketGateway: SocketGateway,
+    private readonly socketGateWayAuth: SocketGatewayAuth,
     private messageService: MessageService,
   ) {}
 
@@ -271,7 +273,7 @@ export class MiniGameService {
         'userActive.update',
         userActive.toObject(),
       );
-      this.socketGateway.server.emit('minigame.place.re', {
+      this.socketGateWayAuth.server.emit('minigame.place.re', {
         message: 'Bạn đã tham gia cược thành công',
         user: res_u,
       });
@@ -280,7 +282,7 @@ export class MiniGameService {
       this.logger.log(
         `Err Place: UID: ${uid} - betId: ${betId} - Msg: ${err.message}`,
       );
-      this.socketGateway.server.emit('minigame.place.re', {
+      this.socketGateWayAuth.server.emit('minigame.place.re', {
         message: err.message,
       });
     } finally {
@@ -326,6 +328,7 @@ export class MiniGameService {
       //   Query bet is avaible;
       const userBet = await this.userService.findUserBetWithId(userBetId);
       if (!userBet) throw new Error('Mã cược không tồn tại');
+      if (userBet.isEnd) throw new Error('Phiên cược đã kết thúc');
 
       const a_game = await this.miniGameModel.findById(userBet.betId);
       if (!a_game) throw new Error('Phiên cược không tồn tại');
@@ -446,7 +449,7 @@ export class MiniGameService {
         userActive.toObject(),
       );
 
-      this.socketGateway.server.emit('minigame.cancel.re', {
+      this.socketGateWayAuth.server.emit('minigame.cancel.re', {
         message: 'Bạn đã hủy cược thành công',
       });
       return;
@@ -454,7 +457,7 @@ export class MiniGameService {
       this.logger.log(
         `Err Cancel: UID: ${uid} - userBetId: ${userBetId} - Msg: ${err.message}`,
       );
-      this.socketGateway.server.emit('minigame.cancel.re', {
+      this.socketGateWayAuth.server.emit('minigame.cancel.re', {
         message: err.message,
       });
     } finally {

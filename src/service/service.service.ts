@@ -9,6 +9,7 @@ import { Mutex } from 'async-mutex';
 import { Spam } from './schema/spam.schema';
 import { OnEvent } from '@nestjs/event-emitter';
 import moment from 'moment';
+import { SocketGatewayAuth } from 'src/socket/socket.gateway.jwt';
 
 @Injectable()
 export class ServiceService {
@@ -19,6 +20,7 @@ export class ServiceService {
     private readonly SpamModel: Model<Spam>,
     private readonly userService: UserService,
     private readonly socketGateWay: SocketGateway,
+    private readonly socketGateWayAuth: SocketGatewayAuth,
   ) {}
 
   private logger: Logger = new Logger('Service');
@@ -167,7 +169,7 @@ export class ServiceService {
       // Send realtime;
       this.socketGateWay.server.emit('service.update', n_service.toObject());
       this.socketGateWay.server.emit('user.update', res_user);
-      this.socketGateWay.server.emit('service.cancel.re', {
+      this.socketGateWayAuth.server.emit('service.cancel.re', {
         message: 'Bạn đã tạo giao dịch thành công',
       });
       return;
@@ -175,7 +177,7 @@ export class ServiceService {
       this.logger.log(
         `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${err.message}`,
       );
-      this.socketGateWay.server.emit('service.create.re', {
+      this.socketGateWayAuth.server.emit('service.create.re', {
         message: err.message,
       });
     } finally {
@@ -257,7 +259,7 @@ export class ServiceService {
       });
 
       this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
-      this.socketGateWay.server.emit('service.cancel.re', {
+      this.socketGateWayAuth.server.emit('service.cancel.re', {
         message: 'Bạn đã hủy giao dịch thành công',
       });
       return;
@@ -266,7 +268,7 @@ export class ServiceService {
         `Error Service Cancel: UID:${uid} - ServiceId:${serviceId}`,
         err.stack,
       );
-      this.socketGateWay.server.emit('service.cancel.re', {
+      this.socketGateWayAuth.server.emit('service.cancel.re', {
         message: err.message,
       });
     } finally {
@@ -510,13 +512,13 @@ export class ServiceService {
       delete res_o_u.pwd_h;
       delete res_t_u.pwd_h;
       this.socketGateWay.server.emit('user.update.bulk', [res_o_u, res_t_u]);
-      this.socketGateWay.server.emit('service.tranfer.money.re', {
+      this.socketGateWayAuth.server.emit('service.tranfer.money.re', {
         message: `Bạn đã chuyển thành công ${new Intl.NumberFormat('vi').format(amount)} vàng cho người chơi ${target.name}`,
       });
       return;
     } catch (err: any) {
       this.logger.log(`Err Tranfer Money: ${err.message}`);
-      this.socketGateWay.server.emit('service.tranfer.money.re', {
+      this.socketGateWayAuth.server.emit('service.tranfer.money.re', {
         message: err.message,
       });
     } finally {
@@ -564,13 +566,13 @@ export class ServiceService {
 
       const { pwd_h, ...res_u } = owner.toObject();
       this.socketGateWay.server.emit('user.update', res_u);
-      this.socketGateWay.server.emit('service.exchange.diamon.re', {
+      this.socketGateWayAuth.server.emit('service.exchange.diamon.re', {
         message: `Bạn đã đổi thành công ${diamon} Gem thành ${new Intl.NumberFormat('vi').format(new_money)} vàng`,
       });
       return;
     } catch (err: any) {
       this.logger.log(`Err Exchange Diamon: ${err.message}`);
-      this.socketGateWay.server.emit('service.exchange.diamon.re', {
+      this.socketGateWayAuth.server.emit('service.exchange.diamon.re', {
         message: err.message,
       });
     } finally {
