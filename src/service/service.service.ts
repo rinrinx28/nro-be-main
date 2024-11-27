@@ -1,18 +1,22 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Service } from './schema/service.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, now } from 'mongoose';
 import { UserService } from 'src/user/user.service';
 import { CancelService, CreateService } from './dto/dto.service';
 import { SocketGateway } from 'src/socket/socket.gateway';
 import { Mutex } from 'async-mutex';
-import { User } from 'src/user/schema/user.schema';
+import { Spam } from './schema/spam.schema';
+import { OnEvent } from '@nestjs/event-emitter';
+import moment from 'moment';
 
 @Injectable()
 export class ServiceService {
   constructor(
     @InjectModel(Service.name)
     private readonly serviceModel: Model<Service>,
+    @InjectModel(Spam.name)
+    private readonly SpamModel: Model<Spam>,
     private readonly userService: UserService,
     private readonly socketGateWay: SocketGateway,
   ) {}
@@ -21,6 +25,7 @@ export class ServiceService {
   private mapService: Map<string, any> = new Map();
   private readonly mutexMap = new Map<string, Mutex>();
 
+  @OnEvent('service.create', { async: true })
   async handlerCreate(payload: CreateService) {
     const { amount, playerName, type, uid, server } = payload;
     const parameter = `${uid}.create.service`; // Value will be lock
@@ -162,22 +167,23 @@ export class ServiceService {
       // Send realtime;
       this.socketGateWay.server.emit('service.update', n_service.toObject());
       this.socketGateWay.server.emit('user.update', res_user);
-      return {
+      this.socketGateWay.server.emit('service.cancel.re', {
         message: 'Bạn đã tạo giao dịch thành công',
-      };
-    } catch (error: any) {
+      });
+      return;
+    } catch (err: any) {
       this.logger.log(
-        `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${error.message}`,
+        `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${err.message}`,
       );
-      throw new HttpException(
-        { message: error.message, code: 400 },
-        HttpStatus.BAD_REQUEST,
-      );
+      this.socketGateWay.server.emit('service.create.re', {
+        message: err.message,
+      });
     } finally {
       release();
     }
   }
 
+  @OnEvent('service.cancel', { async: true })
   async handlerUpdate(payload: CancelService) {
     const { serviceId, uid } = payload;
     const parameter = `${uid}.update.service`;
@@ -251,16 +257,18 @@ export class ServiceService {
       });
 
       this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
-      return { message: 'Bạn đã hủy giao dịch thành công' };
+      this.socketGateWay.server.emit('service.cancel.re', {
+        message: 'Bạn đã hủy giao dịch thành công',
+      });
+      return;
     } catch (err: any) {
       this.logger.error(
         `Error Service Cancel: UID:${uid} - ServiceId:${serviceId}`,
         err.stack,
       );
-      throw new HttpException(
-        { message: err.message, code: 400 },
-        HttpStatus.BAD_REQUEST,
-      );
+      this.socketGateWay.server.emit('service.cancel.re', {
+        message: err.message,
+      });
     } finally {
       release();
     }
@@ -413,6 +421,7 @@ export class ServiceService {
   }
 
   //TODO ———————————————[Tranfer & Diamon]———————————————
+  @OnEvent('service.tranfer.money', { async: true })
   async tranferMoney(payload: {
     targetId: string;
     amount: number;
@@ -501,17 +510,21 @@ export class ServiceService {
       delete res_o_u.pwd_h;
       delete res_t_u.pwd_h;
       this.socketGateWay.server.emit('user.update.bulk', [res_o_u, res_t_u]);
-      return {
+      this.socketGateWay.server.emit('service.tranfer.money.re', {
         message: `Bạn đã chuyển thành công ${new Intl.NumberFormat('vi').format(amount)} vàng cho người chơi ${target.name}`,
-      };
+      });
+      return;
     } catch (err: any) {
       this.logger.log(`Err Tranfer Money: ${err.message}`);
-      throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+      this.socketGateWay.server.emit('service.tranfer.money.re', {
+        message: err.message,
+      });
     } finally {
       release();
     }
   }
 
+  @OnEvent('service.exchange.diamon', { async: true })
   async exchangeDiamon(payload: { diamon: number; ownerId: string }) {
     const parameter = `${payload.ownerId}.exchangeDiamon`; // Value will be lock
 
@@ -551,12 +564,15 @@ export class ServiceService {
 
       const { pwd_h, ...res_u } = owner.toObject();
       this.socketGateWay.server.emit('user.update', res_u);
-      return {
+      this.socketGateWay.server.emit('service.exchange.diamon.re', {
         message: `Bạn đã đổi thành công ${diamon} Gem thành ${new Intl.NumberFormat('vi').format(new_money)} vàng`,
-      };
+      });
+      return;
     } catch (err: any) {
       this.logger.log(`Err Exchange Diamon: ${err.message}`);
-      throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
+      this.socketGateWay.server.emit('service.exchange.diamon.re', {
+        message: err.message,
+      });
     } finally {
       release();
     }
@@ -578,6 +594,10 @@ export class ServiceService {
     if (!service) throw new Error('Mã giao dịch không tồn tại');
     if (!user) throw new Error('Người dùng không tồn tại');
     if (service.uid !== user.id) throw new Error('Người dùng không hợp lệ');
+    let current = moment().unix();
+    let update_time = moment(`${service.updatedAt}`).unix();
+    if (current - update_time < 10)
+      throw new Error('Bạn thao tác quá nhanh, xin vui lòng đợt một chút');
     return { service, user };
   }
 }

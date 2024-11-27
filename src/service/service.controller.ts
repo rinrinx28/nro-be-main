@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -11,29 +10,14 @@ import {
 } from '@nestjs/common';
 import { ServiceService } from './service.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { UserService } from 'src/user/user.service';
 import {
   CancelServiceController,
   CreateServiceController,
 } from './dto/dto.service';
-import { Mutex } from 'async-mutex';
-
 @Controller('service')
 @UseGuards(JwtAuthGuard)
 export class ServiceController {
-  private readonly mutexMap: Map<string, Mutex> = new Map();
-
-  constructor(
-    private readonly serviceService: ServiceService,
-    private readonly userService: UserService,
-  ) {}
-
-  private async getMutex(key: string): Promise<Mutex> {
-    if (!this.mutexMap.has(key)) {
-      this.mutexMap.set(key, new Mutex());
-    }
-    return this.mutexMap.get(key);
-  }
+  constructor(private readonly serviceService: ServiceService) {}
 
   @Post('/create')
   async handlerCreate(@Body() body: CreateServiceController, @Req() req: any) {

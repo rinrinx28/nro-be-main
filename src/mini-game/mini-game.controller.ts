@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpException,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { MiniGameService } from './mini-game.service';
 import { Cancel, Place } from './dto/dto.mini';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -24,8 +32,12 @@ export class MiniGameController {
   @Post('/place')
   @UseGuards(JwtAuthGuard)
   async place(@Body() body: Place, @Req() req: any) {
-    const user = req.user;
-    return await this.miniGameService.placeBet({ ...body, uid: user._id });
+    // const user = req.user;
+    // return await this.miniGameService.placeBet({ ...body, uid: user._id });
+    throw new HttpException(
+      { message: 'Cổng đặt lệnh tạm đóng', code: 400 },
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   @Post('/v2/place')
@@ -36,10 +48,14 @@ export class MiniGameController {
   @Post('/cancel')
   @UseGuards(JwtAuthGuard)
   async cancel(@Body() body: Cancel, @Req() req: any) {
-    const user = req.user;
-    return await this.miniGameService.cancelPlaceBet({
-      ...body,
-      uid: user._id,
-    });
+    // const user = req.user;
+    // return await this.miniGameService.cancelPlaceBet({
+    //   ...body,
+    //   uid: user._id,
+    // });
+    throw new HttpException(
+      { message: 'Cổng hủy lệnh tạm đóng', code: 400 },
+      HttpStatus.BAD_REQUEST,
+    );
   }
 }

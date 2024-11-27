@@ -11,6 +11,7 @@ import { UserBet } from 'src/user/schema/userBet.schema';
 import { MessageService } from 'src/message/message.service';
 import { Jackpot } from './schema/jackpot';
 import { Mutex } from 'async-mutex';
+import { OnEvent } from '@nestjs/event-emitter';
 @Injectable()
 export class MiniGameService {
   constructor(
@@ -27,6 +28,7 @@ export class MiniGameService {
   private logger: Logger = new Logger('MiniGame');
   private readonly mutexMap = new Map<string, Mutex>();
 
+  @OnEvent('minigame.place', { async: true })
   async placeBet(payload: Place) {
     const { betId, uid, amount, place, server, typeBet } = payload;
     const parameter = `${uid}.place.bet`; // Value will be lock
@@ -269,23 +271,24 @@ export class MiniGameService {
         'userActive.update',
         userActive.toObject(),
       );
-      return {
+      this.socketGateway.server.emit('minigame.place.re', {
         message: 'Bạn đã tham gia cược thành công',
         user: res_u,
-      };
+      });
+      return;
     } catch (err: any) {
       this.logger.log(
         `Err Place: UID: ${uid} - betId: ${betId} - Msg: ${err.message}`,
       );
-      throw new HttpException(
-        { message: err.message, code: 400 },
-        HttpStatus.BAD_REQUEST,
-      );
+      this.socketGateway.server.emit('minigame.place.re', {
+        message: err.message,
+      });
     } finally {
       release();
     }
   }
 
+  @OnEvent('minigame.cancel', { async: true })
   async cancelPlaceBet(payload: Cancel) {
     const { userBetId, uid } = payload;
     const parameter = `${uid}.cancel.bet`; // Value will be lock
@@ -443,19 +446,17 @@ export class MiniGameService {
         userActive.toObject(),
       );
 
-      return {
+      this.socketGateway.server.emit('minigame.cancel.re', {
         message: 'Bạn đã hủy cược thành công',
-        user: res_u,
-        userBet: userBet.toObject(),
-      };
+      });
+      return;
     } catch (err: any) {
       this.logger.log(
         `Err Cancel: UID: ${uid} - userBetId: ${userBetId} - Msg: ${err.message}`,
       );
-      throw new HttpException(
-        { message: err.message, code: 400 },
-        HttpStatus.BAD_REQUEST,
-      );
+      this.socketGateway.server.emit('minigame.cancel.re', {
+        message: err.message,
+      });
     } finally {
       release();
     }
