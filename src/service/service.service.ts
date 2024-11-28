@@ -29,7 +29,7 @@ export class ServiceService {
 
   @OnEvent('service.create', { async: true })
   async handlerCreate(payload: CreateService) {
-    const { amount, playerName, type, uid, server } = payload;
+    const { amount, playerName, type, uid, server, clientId } = payload;
     const parameter = `${uid}.create.service`; // Value will be lock
 
     // Create mutex if it not exist
@@ -169,7 +169,7 @@ export class ServiceService {
       // Send realtime;
       this.socketGateWay.server.emit('service.update', n_service.toObject());
       this.socketGateWay.server.emit('user.update', res_user);
-      this.socketGateWayAuth.server.emit('service.cancel.re', {
+      this.socketGateWayAuth.server.to(clientId).emit('service.cancel.re', {
         message: 'Bạn đã tạo giao dịch thành công',
       });
       return;
@@ -177,7 +177,7 @@ export class ServiceService {
       this.logger.log(
         `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${err.message}`,
       );
-      this.socketGateWayAuth.server.emit('service.create.re', {
+      this.socketGateWayAuth.server.to(clientId).emit('service.create.re', {
         message: err.message,
       });
     } finally {
@@ -187,7 +187,7 @@ export class ServiceService {
 
   @OnEvent('service.cancel', { async: true })
   async handlerUpdate(payload: CancelService) {
-    const { serviceId, uid } = payload;
+    const { serviceId, uid, clientId } = payload;
     const parameter = `${uid}.update.service`;
 
     // Create or reuse a mutex for the user
@@ -261,7 +261,7 @@ export class ServiceService {
       this.socketGateWay.server.emit('user.update', sanitizedUser);
 
       this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
-      this.socketGateWayAuth.server.emit('service.cancel.re', {
+      this.socketGateWayAuth.server.to(clientId).emit('service.cancel.re', {
         message: 'Bạn đã hủy giao dịch thành công',
       });
       return;
@@ -270,7 +270,7 @@ export class ServiceService {
         `Error Service Cancel: UID:${uid} - ServiceId:${serviceId}`,
         err.stack,
       );
-      this.socketGateWayAuth.server.emit('service.cancel.re', {
+      this.socketGateWayAuth.server.to(clientId).emit('service.cancel.re', {
         message: err.message,
       });
     } finally {
@@ -431,6 +431,7 @@ export class ServiceService {
     amount: number;
     server: string;
     ownerId: string;
+    clientId?: string;
   }) {
     const parameter = `${payload.ownerId}.tranferMoney`; // Value will be lock
 
@@ -441,8 +442,8 @@ export class ServiceService {
 
     const mutex = this.mutexMap.get(parameter);
     const release = await mutex.acquire();
+    const { amount, ownerId, server, targetId, clientId } = payload;
     try {
-      const { amount, ownerId, server, targetId } = payload;
       const e_shop = await this.userService.findConfigWithName('e_shop');
       const owner = await this.userService.findUserOption({ _id: ownerId });
       if (!owner) throw new Error('Người dùng không tồn tại');
@@ -514,22 +515,30 @@ export class ServiceService {
       delete res_o_u.pwd_h;
       delete res_t_u.pwd_h;
       this.socketGateWay.server.emit('user.update.bulk', [res_o_u, res_t_u]);
-      this.socketGateWayAuth.server.emit('service.tranfer.money.re', {
-        message: `Bạn đã chuyển thành công ${new Intl.NumberFormat('vi').format(amount)} vàng cho người chơi ${target.name}`,
-      });
+      this.socketGateWayAuth.server
+        .to(clientId)
+        .emit('service.tranfer.money.re', {
+          message: `Bạn đã chuyển thành công ${new Intl.NumberFormat('vi').format(amount)} vàng cho người chơi ${target.name}`,
+        });
       return;
     } catch (err: any) {
       this.logger.log(`Err Tranfer Money: ${err.message}`);
-      this.socketGateWayAuth.server.emit('service.tranfer.money.re', {
-        message: err.message,
-      });
+      this.socketGateWayAuth.server
+        .to(clientId)
+        .emit('service.tranfer.money.re', {
+          message: err.message,
+        });
     } finally {
       release();
     }
   }
 
   @OnEvent('service.exchange.diamon', { async: true })
-  async exchangeDiamon(payload: { diamon: number; ownerId: string }) {
+  async exchangeDiamon(payload: {
+    diamon: number;
+    ownerId: string;
+    clientId?: string;
+  }) {
     const parameter = `${payload.ownerId}.exchangeDiamon`; // Value will be lock
 
     // Create mutex if it not exist
@@ -539,8 +548,8 @@ export class ServiceService {
 
     const mutex = this.mutexMap.get(parameter);
     const release = await mutex.acquire();
+    const { diamon, ownerId, clientId } = payload;
     try {
-      const { diamon, ownerId } = payload;
       const e_reward = await this.userService.findConfigWithName('e_reward');
       const { exchange = 1e6 } = e_reward.option;
       const owner = await this.userService.findUserOption({ _id: ownerId });
@@ -568,15 +577,19 @@ export class ServiceService {
 
       const { pwd_h, ...res_u } = owner.toObject();
       this.socketGateWay.server.emit('user.update', res_u);
-      this.socketGateWayAuth.server.emit('service.exchange.diamon.re', {
-        message: `Bạn đã đổi thành công ${diamon} Gem thành ${new Intl.NumberFormat('vi').format(new_money)} vàng`,
-      });
+      this.socketGateWayAuth.server
+        .to(clientId)
+        .emit('service.exchange.diamon.re', {
+          message: `Bạn đã đổi thành công ${diamon} Gem thành ${new Intl.NumberFormat('vi').format(new_money)} vàng`,
+        });
       return;
     } catch (err: any) {
       this.logger.log(`Err Exchange Diamon: ${err.message}`);
-      this.socketGateWayAuth.server.emit('service.exchange.diamon.re', {
-        message: err.message,
-      });
+      this.socketGateWayAuth.server
+        .to(clientId)
+        .emit('service.exchange.diamon.re', {
+          message: err.message,
+        });
     } finally {
       release();
     }

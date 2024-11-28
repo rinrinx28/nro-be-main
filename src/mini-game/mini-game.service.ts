@@ -32,7 +32,7 @@ export class MiniGameService {
 
   @OnEvent('minigame.place', { async: true })
   async placeBet(payload: Place) {
-    const { betId, uid, amount, place, server, typeBet } = payload;
+    const { betId, uid, amount, place, server, typeBet, clientId } = payload;
     const parameter = `${uid}.place.bet`; // Value will be lock
 
     // Create mutex if it not exist
@@ -273,7 +273,7 @@ export class MiniGameService {
         'userActive.update',
         userActive.toObject(),
       );
-      this.socketGateWayAuth.server.emit('minigame.place.re', {
+      this.socketGateWayAuth.server.to(clientId).emit('minigame.place.re', {
         message: 'Bạn đã tham gia cược thành công',
         user: res_u,
       });
@@ -282,7 +282,7 @@ export class MiniGameService {
       this.logger.log(
         `Err Place: UID: ${uid} - betId: ${betId} - Msg: ${err.message}`,
       );
-      this.socketGateWayAuth.server.emit('minigame.place.re', {
+      this.socketGateWayAuth.server.to(clientId).emit('minigame.place.re', {
         message: err.message,
       });
     } finally {
@@ -292,7 +292,7 @@ export class MiniGameService {
 
   @OnEvent('minigame.cancel', { async: true })
   async cancelPlaceBet(payload: Cancel) {
-    const { userBetId, uid } = payload;
+    const { userBetId, uid, clientId } = payload;
     const parameter = `${uid}.cancel.bet`; // Value will be lock
 
     // Create mutex if it not exist
@@ -449,7 +449,7 @@ export class MiniGameService {
         userActive.toObject(),
       );
 
-      this.socketGateWayAuth.server.emit('minigame.cancel.re', {
+      this.socketGateWayAuth.server.to(clientId).emit('minigame.cancel.re', {
         message: 'Bạn đã hủy cược thành công',
       });
       return;
@@ -457,7 +457,7 @@ export class MiniGameService {
       this.logger.log(
         `Err Cancel: UID: ${uid} - userBetId: ${userBetId} - Msg: ${err.message}`,
       );
-      this.socketGateWayAuth.server.emit('minigame.cancel.re', {
+      this.socketGateWayAuth.server.to(clientId).emit('minigame.cancel.re', {
         message: err.message,
       });
     } finally {

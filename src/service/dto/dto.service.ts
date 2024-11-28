@@ -38,6 +38,8 @@ export class CreateService {
 
   @IsNotEmpty({ message: 'Vui lòng chọn máy chủ giao dịch' })
   server: string;
+
+  clientId?: string;
 }
 
 export class CancelService {
@@ -46,4 +48,6 @@ export class CancelService {
 
   @IsNotEmpty({ message: 'Vui lòng nhập mã giao dịch' })
   serviceId: string;
+
+  clientId?: string;
 }

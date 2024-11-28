@@ -22,9 +22,13 @@ export class Place {
 
   @MinLength(1, { message: 'Vui lòng đặt cược' })
   place: typePlace;
+
+  clientId?: string;
 }
 
 export class Cancel {
   uid?: string;
   userBetId: string;
+
+  clientId?: string;
 }

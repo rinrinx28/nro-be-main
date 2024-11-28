@@ -6,6 +6,7 @@ import {
   OnGatewayDisconnect,
   SubscribeMessage,
   MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger, UseFilters, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
@@ -49,13 +50,21 @@ export class SocketGatewayAuth
 
   @UseGuards(JwtWsGuard)
   @SubscribeMessage('service.create')
-  handlerCreate(@MessageBody() data: CreateService) {
+  handlerCreate(
+    @MessageBody() data: CreateService,
+    @ConnectedSocket() client: Socket,
+  ) {
+    data.clientId = client.id;
     this.eventEmit.emitAsync('service.create', data);
   }
 
   @UseGuards(JwtWsGuard)
   @SubscribeMessage('service.cancel')
-  handlerUpdate(@MessageBody() data: CancelService) {
+  handlerUpdate(
+    @MessageBody() data: CancelService,
+    @ConnectedSocket() client: Socket,
+  ) {
+    data.clientId = client.id;
     this.eventEmit.emitAsync('service.cancel', data);
   }
 
@@ -69,30 +78,38 @@ export class SocketGatewayAuth
       server: string;
       ownerId?: string;
       uid: string;
+      clientId?: string;
     },
+    @ConnectedSocket() client: Socket, // Access the connected WebSocket client
   ) {
     data.ownerId = data.uid;
+    data.clientId = client.id;
     this.eventEmit.emitAsync('service.tranfer.money', data);
   }
 
   @UseGuards(JwtWsGuard)
   @SubscribeMessage('service.exchange.diamon')
   exchangeDiamon(
-    @MessageBody() data: { diamon: number; ownerId?: string; uid: string },
+    @MessageBody()
+    data: { diamon: number; ownerId?: string; uid: string; clientId?: string },
+    @ConnectedSocket() client: Socket, // Access the connected WebSocket client
   ) {
     data.ownerId = data.uid;
+    data.clientId = client.id;
     this.eventEmit.emitAsync('service.exchange.diamon', data);
   }
 
   @UseGuards(JwtWsGuard)
   @SubscribeMessage('minigame.place')
-  place(@MessageBody() data: Place) {
+  place(@MessageBody() data: Place, @ConnectedSocket() client: Socket) {
+    data.clientId = client.id;
     this.eventEmit.emitAsync('minigame.place', data);
   }
 
   @UseGuards(JwtWsGuard)
   @SubscribeMessage('minigame.cancel')
-  cancelPlace(@MessageBody() data: Cancel) {
+  cancelPlace(@MessageBody() data: Cancel, @ConnectedSocket() client: Socket) {
+    data.clientId = client.id;
     this.eventEmit.emitAsync('minigame.cancel', data);
   }
 }
