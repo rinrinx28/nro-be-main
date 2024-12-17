@@ -504,12 +504,20 @@ export class ServiceService {
   @OnEvent('remove.autocancel', { async: true })
   async removeCancel(serviceId: string) {
     try {
-      if (this.mapService.has(serviceId)) {
-        let auto = this.mapService.get(serviceId);
+      if (!this.mapService.has(serviceId)) {
+        this.logger.log(`Service ID ${serviceId} not found in mapService.`);
+        return;
+      }
+
+      let auto = this.mapService.get(serviceId);
+
+      if (auto) {
         clearTimeout(auto);
         this.mapService.delete(serviceId);
+        this.logger.log(`Remove Service ${serviceId} is success`);
+      } else {
+        this.logger.log(`No timeout found for Service ID ${serviceId}.`);
       }
-      this.logger.log('Remove Service is success');
     } catch (err: any) {
       this.logger.log('Err Remove Service Auto: ', err.message);
     }
@@ -719,8 +727,21 @@ export class ServiceService {
   }
 
   async getListCron() {
-    const entries = Array.from(this.mapService.keys());
-    const services = await this.serviceModel.find({ _id: { $in: entries } });
-    return services;
+    const entries = [...this.mapService.keys()]; // Chuyển đổi Iterator thành mảng.
+
+    if (entries.length === 0) {
+      return []; // Nếu không có entries, trả về mảng trống ngay lập tức.
+    }
+
+    try {
+      // Tìm các dịch vụ với _id nằm trong entries
+      const services = await this.serviceModel
+        .find({ _id: { $in: entries } })
+        .exec();
+      return services;
+    } catch (err) {
+      this.logger.error('Error fetching services:', err);
+      return [];
+    }
   }
 }
