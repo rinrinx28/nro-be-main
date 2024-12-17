@@ -31,7 +31,7 @@ export class RolesGuard implements CanActivate {
     if (!hasRole) {
       // Throw an exception if the user does not have the required role and is not an Admin
       throw new ForbiddenException(
-        'You do not have the required role to access this resource',
+        'Bạn không có vai trò cần thiết để truy cập tài nguyên này',
       );
     }
 

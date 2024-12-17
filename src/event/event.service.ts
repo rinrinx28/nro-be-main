@@ -78,6 +78,7 @@ export class EventService {
   @OnEvent('service.update', { async: true })
   async handleServiceUpdate(payload: any) {
     this.socketGateway.server.emit('service.update', payload);
+    this.socketGateway.server.emit('remove.autocancel', payload.id);
   }
 
   @OnEvent('clan.update.bulk', { async: true })

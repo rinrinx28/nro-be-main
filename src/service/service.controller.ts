@@ -14,8 +14,11 @@ import {
   CancelServiceController,
   CreateServiceController,
 } from './dto/dto.service';
+import { RolesGuard } from 'src/admin/enums/roles.guard';
+import { Role } from 'src/admin/enums/role.enum';
+import { Roles } from 'src/admin/enums/roles.decorator';
 @Controller('service')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard) // Combine guards
 export class ServiceController {
   constructor(private readonly serviceService: ServiceService) {}
 
@@ -84,5 +87,11 @@ export class ServiceController {
       limited: Number(limited),
       ownerId: user._id.toString(),
     });
+  }
+
+  @Get('/list/cron')
+  @Roles(Role.Admin) // add role admin
+  async getListCron() {
+    return await this.serviceService.getListCron();
   }
 }

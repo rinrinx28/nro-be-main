@@ -19,6 +19,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AdminModule2 } from './admin/admin.module';
 import { RedisModule } from './redis/redis.module';
 import { QueuesModule } from './queues/queues.module';
+import { GiftcodeModule } from './giftcode/giftcode.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { QueuesModule } from './queues/queues.module';
     AdminModule2,
     RedisModule,
     QueuesModule,
+    GiftcodeModule,
   ],
   controllers: [AppController],
   providers: [AppService, TaskServiceService],

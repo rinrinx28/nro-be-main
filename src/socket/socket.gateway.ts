@@ -15,7 +15,7 @@ import { WebSocketExceptionFilter } from './websocket-exception.filter';
 @WebSocketGateway({
   cors: {
     origin: [
-      'http://localhost:3000',
+      // 'http://localhost:3000',
       'http://localhost:3035',
       'http://localhost:3036',
       'https://beta.nrogame.me',

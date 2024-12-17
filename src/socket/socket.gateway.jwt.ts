@@ -20,9 +20,9 @@ import { Cancel, Place } from 'src/mini-game/dto/dto.mini';
   namespace: 'auth',
   cors: {
     origin: [
-      'http://localhost:3000',
-      'http://localhost:3035',
-      'http://localhost:3036',
+      // 'http://localhost:3000',
+      // 'http://localhost:3035',
+      // 'http://localhost:3036',
       'https://beta.nrogame.me',
       'http://154.26.133.248:3000',
     ],

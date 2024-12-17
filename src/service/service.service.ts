@@ -27,152 +27,213 @@ export class ServiceService {
   private mapService: Map<string, any> = new Map();
   private readonly mutexMap = new Map<string, Mutex>();
 
+  private validateTransactionLimits(
+    type: string,
+    amount: number,
+    user: any,
+    limits: {
+      min_gold: number;
+      min_rgold: number;
+      max_gold: number;
+      max_rgold: number;
+    },
+  ) {
+    const { min_gold, min_rgold, max_gold, max_rgold } = limits;
+    const tradeAmount = type === '0' ? amount * 37e6 : amount;
+    const min = type === '0' ? min_rgold : min_gold;
+    const max = type === '0' ? max_rgold : max_gold;
+
+    if (tradeAmount > user.meta.limitTrade) {
+      throw new Error(
+        'Bạn không thể rút quá hạn mức hôm nay, xin vui lòng tham gia Minigame để tăng điểm',
+      );
+    }
+    if (amount < min) {
+      throw new Error(
+        `Mức rút tối thiểu là ${new Intl.NumberFormat('vi').format(min)} thỏi vàng`,
+      );
+    }
+    if (amount > max) {
+      throw new Error(
+        `Mức rút tối đa là ${new Intl.NumberFormat('vi').format(max)} thỏi vàng`,
+      );
+    }
+    if (user.money - tradeAmount <= 1) {
+      throw new Error('Số dư tối thiểu của bạn phải 1 vàng');
+    }
+  }
+
+  private async handleWithdrawal(type: string, amount: number, user: any) {
+    const withdrawAmount = type === '0' ? amount * 37e6 : amount;
+    const activeName = type === '0' ? 'w_rgold' : 'w_gold';
+
+    await this.createUserActive(
+      user._id.toString(),
+      user.money,
+      activeName,
+      withdrawAmount,
+    );
+    user.money -= withdrawAmount;
+    user.meta.limitTrade -= withdrawAmount;
+    user.meta.trade += withdrawAmount;
+  }
+
+  private async createUserActive(
+    uid: string,
+    currentMoney: number,
+    name: string,
+    withdrawAmount: number = 0,
+  ) {
+    const newMoney = currentMoney + withdrawAmount;
+    await this.userService.createUserActive({
+      uid,
+      active: {
+        name,
+        status: '0',
+        m_current: currentMoney,
+        m_new: newMoney,
+        amount: withdrawAmount,
+      },
+    });
+  }
+
+  private scheduleAutoCancel(serviceId: string, timeout: number) {
+    const autoCancel = setTimeout(async () => {
+      await this.handlerCancelLocal(serviceId);
+    }, timeout);
+    this.addCancel(serviceId, autoCancel);
+  }
+
+  private logAndNotify(
+    uid: string,
+    type: string,
+    amount: number,
+    service: any,
+    user: any,
+    clientId: string = '',
+  ) {
+    this.logger.log(
+      `Service Create: UID:${uid} - Type: ${type} - Amount: ${amount}`,
+    );
+    this.socketGateWay.server.emit('service.update', service.toObject());
+    this.socketGateWay.server.emit('user.update', user);
+    this.socketGateWayAuth.server.to(clientId).emit('service.cancel.re', {
+      message: 'Bạn đã tạo giao dịch thành công',
+    });
+  }
+
+  private processRefund(targetService: any, targetUser: any): number {
+    const { money, meta } = targetUser;
+    const { type, amount } = targetService;
+    let refundAmount = 0;
+
+    if (type === '0' || type === '1') {
+      refundAmount = this.calculateRefund(type, amount);
+
+      // Cập nhật số dư và meta người dùng
+      targetUser.money += refundAmount;
+      targetUser.meta = {
+        ...meta,
+        limitTrade: meta.limitTrade + refundAmount,
+        trade: meta.trade - refundAmount,
+      };
+
+      // Ghi log giao dịch hoàn tiền
+      this.userService.createUserActive({
+        uid: targetUser._id.toString(),
+        active: {
+          name: type === '0' ? 'cancel_w_rgold' : 'cancel_w_gold',
+          m_current: money,
+          m_new: money + refundAmount,
+          status: '1',
+          amount: amount,
+        },
+      });
+    } else if (type === '2' || type === '3') {
+      // Ghi log hủy giao dịch nạp
+      this.userService.createUserActive({
+        uid: targetUser._id.toString(),
+        active: {
+          name: type === '2' ? 'cancel_d_rgold' : 'cancel_d_gold',
+          m_current: money,
+          m_new: money,
+          status: '1',
+          amount: amount,
+        },
+      });
+    }
+
+    return refundAmount;
+  }
+
   @OnEvent('service.create', { async: true })
   async handlerCreate(payload: CreateService) {
     const { amount, playerName, type, uid, server, clientId } = payload;
-    const parameter = `${uid}.create.service`; // Value will be lock
+    const parameter = `${uid}.create.service`;
 
-    // Create mutex if it not exist
     if (!this.mutexMap.has(parameter)) {
       this.mutexMap.set(parameter, new Mutex());
     }
 
     const mutex = this.mutexMap.get(parameter);
     const release = await mutex.acquire();
+
     try {
-      const e_shop = await this.userService.findConfigWithName('e_shop');
-      if (!e_shop) throw new Error('Không tìm thấy cài đặt e_shop');
-      if (!e_shop.isEnable)
+      const eShopConfig = await this.userService.findConfigWithName('e_shop');
+      if (!eShopConfig || !eShopConfig.isEnable) {
         throw new Error('Hệ thống nạp/rút hiện đang bảo trì!');
-      const {
-        min_gold = 50e6,
-        min_rgold = 4,
-        max_gold = 600e6,
-        max_rgold = 40,
-      } = e_shop.option;
-      // Let Check old service isEnd?
-      const old_s = await this.serviceModel
-        .findOne({ uid: uid })
+      }
+
+      const { min_gold, min_rgold, max_gold, max_rgold } = eShopConfig.option;
+      const oldService = await this.serviceModel
+        .findOne({ uid })
         .sort({ updatedAt: -1 });
-      if (old_s && !old_s.isEnd)
+
+      if (oldService && !oldService.isEnd) {
         throw new Error(
           'Đơn giao dịch trước đó chưa kết thúc, xin vui lòng kiểm tra lại!',
         );
+      }
+
       const user = await this.userService.findUserOption({ _id: uid });
-      if (!user) throw new Error('Người dùng không tồn tại!');
-      const { meta } = user;
-      // Validate transaction limits for withdrawals
+      if (!user) {
+        throw new Error('Người dùng không tồn tại!');
+      }
+
       if (['0', '1'].includes(type)) {
-        const limitTrade = meta.limitTrade;
-        const tradeAmount = type === '0' ? amount * 37e6 : amount; // Convert amount based on type
-        const min = type === '0' ? min_rgold : min_gold;
-        const max = type === '0' ? max_rgold : max_gold;
-
-        // Check if the user exceeds their daily trade limit
-        if (tradeAmount > limitTrade) {
-          throw new Error(
-            'Bạn không thể rút quá hạn mức hôm nay, xin vui lòng tham gia Minigame để tăng điểm',
-          );
-        }
-
-        if (amount < min)
-          throw new Error(
-            `Mức rút tối thiểu là ${new Intl.NumberFormat('vi').format(min)} thỏi vàng`,
-          );
-        if (amount > max)
-          throw new Error(
-            `Mức rút tối đa là ${new Intl.NumberFormat('vi').format(max)} thỏi vàng`,
-          );
-        if (user.money - tradeAmount <= 1)
-          throw new Error('Số dư tối thiểu của bạn phải 1 vàng');
-      }
-      // Check Service Withdraw
-      // Let minus money user with withdraw rgold
-      if (type === '0') {
-        const withdraw_rgold = amount * 37e6;
-
-        await this.userService.createUserActive({
-          uid: user._id.toString(),
-          active: {
-            name: 'w_rgold',
-            status: '0',
-            m_current: user.money,
-            m_new: user.money + withdraw_rgold,
-          },
+        this.validateTransactionLimits(type, amount, user, {
+          min_gold,
+          min_rgold,
+          max_gold,
+          max_rgold,
         });
-
-        // Update user balance and meta
-        user.money -= withdraw_rgold;
-        user.meta.limitTrade -= withdraw_rgold;
-        user.meta.trade += withdraw_rgold;
-      }
-      // Let minus money user with withdraw gold
-      if (type === '1') {
-        let withdraw_gold = amount;
-
-        // Let create active;
-        await this.userService.createUserActive({
-          uid: uid,
-          active: {
-            name: 'w_gold',
-            status: '0',
-            m_current: user.money,
-            m_new: user.money + withdraw_gold,
-          },
-        });
-
-        user.money -= withdraw_gold;
-        user.meta.limitTrade -= withdraw_gold;
-        user.meta.trade += withdraw_gold;
       }
 
-      // Another Deposit ...
-      if (type === '2' || type === '3') {
-        await this.userService.createUserActive({
+      if (type === '0' || type === '1') {
+        await this.handleWithdrawal(type, amount, user);
+      } else if (type === '2' || type === '3') {
+        await this.createUserActive(
           uid,
-          active: {
-            name: type === '2' ? 'd_rgold' : 'd_gold',
-            m_current: user.money,
-            m_new: user.money,
-          },
-        });
+          user.money,
+          type === '2' ? 'd_rgold' : 'd_gold',
+          amount,
+        );
       }
 
-      // Let save user;
-      // Mark meta as modified if needed (for Mongoose)
       user.markModified('meta');
       await user.save();
-      const res_user = this.sanitizeUser(user);
 
-      // / Let Create Service
-      const n_service = await this.serviceModel.create({
-        uid: uid,
-        playerName: playerName,
-        amount: amount,
+      const sanitizedUser = this.sanitizeUser(user);
+      const newService = await this.serviceModel.create({
+        uid,
+        playerName,
+        amount,
         type,
         server,
       });
 
-      // Let auto cancel;
-      let autocCancel = setTimeout(async () => {
-        await this.handlerCancelLocal(n_service.id);
-      }, 600e3);
-      // 600e3 = 600s = 10p
-      // 10e3 = 10s = 0.6p
-      this.addCancel(n_service.id, autocCancel);
-
-      // save Log
-      this.logger.log(
-        `Service Create: UID:${uid} - Type: w_gold - Amount: ${amount}`,
-      );
-
-      // Send realtime;
-      this.socketGateWay.server.emit('service.update', n_service.toObject());
-      this.socketGateWay.server.emit('user.update', res_user);
-      this.socketGateWayAuth.server.to(clientId).emit('service.cancel.re', {
-        message: 'Bạn đã tạo giao dịch thành công',
-      });
-      return;
+      this.scheduleAutoCancel(newService.id, 600e3); // 10 minutes
+      this.logAndNotify(uid, type, amount, newService, sanitizedUser, clientId);
     } catch (err: any) {
       this.logger.log(
         `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${err.message}`,
@@ -187,10 +248,10 @@ export class ServiceService {
 
   @OnEvent('service.cancel', { async: true })
   async handlerUpdate(payload: CancelService) {
-    const { serviceId, uid, clientId } = payload;
+    const { serviceId, uid, clientId = '' } = payload;
     const parameter = `${uid}.update.service`;
 
-    // Create or reuse a mutex for the user
+    // Tạo hoặc tái sử dụng mutex cho người dùng
     if (!this.mutexMap.has(parameter)) {
       this.mutexMap.set(parameter, new Mutex());
     }
@@ -199,72 +260,43 @@ export class ServiceService {
     const release = await mutex.acquire();
 
     try {
-      // Validate service and user
-      const { service: target_s, user: target_u } =
+      // Xác thực giao dịch và người dùng
+      const { service: targetService, user: targetUser } =
         await this.validateServiceAndUser(serviceId, uid);
-      if (target_s.isEnd) throw new Error('Giao dịch đã kết thúc');
 
-      // Refund logic
-      const { money, meta } = target_u;
-      let refundAmount = 0;
-      const { type, amount } = target_s;
-
-      if (type === '0' || type === '1') {
-        refundAmount = this.calculateRefund(type, amount);
-        target_u.money += refundAmount;
-        target_u.meta = {
-          ...meta,
-          limitTrade: meta.limitTrade + refundAmount,
-          trade: meta.trade - refundAmount,
-        };
-        target_s.revice = refundAmount;
-
-        // Log the refund
-        await this.userService.createUserActive({
-          uid,
-          active: {
-            name: type === '0' ? 'cancel_w_rgold' : 'cancel_w_gold',
-            m_current: money,
-            m_new: money + refundAmount,
-            status: '1',
-          },
-        });
-      } else if (type === '2' || type === '3') {
-        await this.userService.createUserActive({
-          uid,
-          active: {
-            name: type === '2' ? 'cancel_d_rgold' : 'cancel_d_gold',
-            m_current: money,
-            m_new: money,
-            status: '1',
-          },
-        });
+      if (targetService.isEnd) {
+        throw new Error('Giao dịch đã kết thúc');
       }
 
-      // Finalize updates
-      target_s.isEnd = true;
-      target_s.status = '1';
-      this.removeCancel(target_s.id);
+      // Hoàn tiền nếu cần
+      const refundAmount = this.processRefund(targetService, targetUser);
 
-      target_u.markModified('meta');
-      await target_u.save();
-      await target_s.save();
+      // Cập nhật trạng thái giao dịch
+      targetService.isEnd = true;
+      targetService.status = '1';
+      if (refundAmount > 0) {
+        targetService.revice = refundAmount;
+      }
 
-      const sanitizedUser = this.sanitizeUser(target_u);
+      // Loại bỏ giao dịch tự hủy (nếu có)
+      this.removeCancel(targetService.id);
 
-      // Emit updates via WebSocket
-      // this.socketGateWay.server.emit('updates', {
-      //   service: target_s.toObject(),
-      //   user: sanitizedUser,
-      // });
-      this.socketGateWay.server.emit('service.update', target_s.toObject());
+      // Lưu thông tin
+      targetUser.markModified('meta');
+      await Promise.all([targetUser.save(), targetService.save()]);
+
+      // Gửi dữ liệu cập nhật
+      const sanitizedUser = this.sanitizeUser(targetUser);
+      this.socketGateWay.server.emit(
+        'service.update',
+        targetService.toObject(),
+      );
       this.socketGateWay.server.emit('user.update', sanitizedUser);
 
       this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
       this.socketGateWayAuth.server.to(clientId).emit('service.cancel.re', {
         message: 'Bạn đã hủy giao dịch thành công',
       });
-      return;
     } catch (err: any) {
       this.logger.error(
         `Error Service Cancel: UID:${uid} - ServiceId:${serviceId}`,
@@ -411,6 +443,7 @@ export class ServiceService {
     } catch (err: any) {}
   }
 
+  @OnEvent('remove.autocancel', { async: true })
   async removeCancel(serviceId: string) {
     try {
       if (this.mapService.has(serviceId)) {
@@ -602,7 +635,7 @@ export class ServiceService {
   }
 
   calculateRefund(type: string, amount: number) {
-    return type === '0' ? amount * 1e6 * 37 : amount;
+    return type === '0' ? amount * 37e6 : amount;
   }
 
   async validateServiceAndUser(serviceId: any, uid: any) {
@@ -616,5 +649,11 @@ export class ServiceService {
     if (current - update_time < 10)
       throw new Error('Bạn thao tác quá nhanh, xin vui lòng đợt một chút');
     return { service, user };
+  }
+
+  async getListCron() {
+    const entries = Array.from(this.mapService.keys());
+    const services = await this.serviceModel.find({ _id: { $in: entries } });
+    return services;
   }
 }
