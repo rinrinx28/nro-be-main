@@ -310,6 +310,64 @@ export class ServiceService {
     }
   }
 
+  @OnEvent('service.cancel.client', { async: true })
+  async handlerUpdateClient(payload: CancelService) {
+    const { serviceId, uid } = payload;
+    const parameter = `${uid}.update.service`;
+
+    // Tạo hoặc tái sử dụng mutex cho người dùng
+    if (!this.mutexMap.has(parameter)) {
+      this.mutexMap.set(parameter, new Mutex());
+    }
+
+    const mutex = this.mutexMap.get(parameter);
+    const release = await mutex.acquire();
+
+    try {
+      // Xác thực giao dịch và người dùng
+      const { service: targetService, user: targetUser } =
+        await this.validateServiceAndUserClient(serviceId, uid);
+
+      if (targetService.isEnd) {
+        throw new Error('Giao dịch đã kết thúc');
+      }
+
+      // Hoàn tiền nếu cần
+      const refundAmount = this.processRefund(targetService, targetUser);
+
+      // Cập nhật trạng thái giao dịch
+      targetService.isEnd = true;
+      targetService.status = '1';
+      if (refundAmount > 0) {
+        targetService.revice = refundAmount;
+      }
+
+      // Loại bỏ giao dịch tự hủy (nếu có)
+      this.removeCancel(targetService.id);
+
+      // Lưu thông tin
+      targetUser.markModified('meta');
+      await Promise.all([targetUser.save(), targetService.save()]);
+
+      // Gửi dữ liệu cập nhật
+      const sanitizedUser = this.sanitizeUser(targetUser);
+      this.socketGateWay.server.emit(
+        'service.update',
+        targetService.toObject(),
+      );
+      this.socketGateWay.server.emit('user.update', sanitizedUser);
+
+      this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
+    } catch (err: any) {
+      this.logger.error(
+        `Error Service Cancel: UID:${uid} - ServiceId:${serviceId}`,
+        err.stack,
+      );
+    } finally {
+      release();
+    }
+  }
+
   async handlerCancelLocal(serviceId: string) {
     const parameter = `${serviceId}.cancel.service.local`;
 
@@ -648,6 +706,15 @@ export class ServiceService {
     let update_time = moment(`${service.updatedAt}`).unix();
     if (current - update_time < 10)
       throw new Error('Bạn thao tác quá nhanh, xin vui lòng đợt một chút');
+    return { service, user };
+  }
+
+  async validateServiceAndUserClient(serviceId: any, uid: any) {
+    const service = await this.serviceModel.findById(serviceId);
+    const user = await this.userService.findUserOption({ _id: uid });
+    if (!service) throw new Error('Mã giao dịch không tồn tại');
+    if (!user) throw new Error('Người dùng không tồn tại');
+    if (service.uid !== user.id) throw new Error('Người dùng không hợp lệ');
     return { service, user };
   }
 
