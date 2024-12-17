@@ -110,7 +110,7 @@ export class ServiceService {
     amount: number,
     service: any,
     user: any,
-    clientId: string = '',
+    clientId: string,
   ) {
     this.logger.log(
       `Service Create: UID:${uid} - Type: ${type} - Amount: ${amount}`,
