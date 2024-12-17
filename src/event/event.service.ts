@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Bot } from 'src/bot/schema/bot.schema';
 import { SocketGateway } from 'src/socket/socket.gateway';
 import { UserChat, UserChatClan } from './dto/dto.event';
@@ -46,6 +46,7 @@ export class EventService {
     private readonly JackpotModel: Model<Jackpot>,
     @InjectModel(FingerPrint.name)
     private readonly FingerPrintModel: Model<FingerPrint>,
+    private readonly eventEmit: EventEmitter2,
   ) {}
   private logger: Logger = new Logger('Middle Handler');
   private readonly mutexMap = new Map<string, Mutex>();
@@ -78,7 +79,7 @@ export class EventService {
   @OnEvent('service.update', { async: true })
   async handleServiceUpdate(payload: any) {
     this.socketGateway.server.emit('service.update', payload);
-    this.socketGateway.server.emit('remove.autocancel', payload.id);
+    this.eventEmit.emitAsync('remove.autocancel', payload.id);
   }
 
   @OnEvent('clan.update.bulk', { async: true })
