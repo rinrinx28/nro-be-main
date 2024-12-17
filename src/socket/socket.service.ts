@@ -47,6 +47,10 @@ export class SocketClientService implements OnModuleInit, OnModuleDestroy {
     this.socket.on('service.update', (data: any) => {
       this.eventEmit.emitAsync('service.update', data);
     });
+
+    this.socket.on('service.cancel', (data: any) => {
+      this.eventEmit.emitAsync('service.cancel', data);
+    });
     // Listen for messages from the server
     this.socket.on('clan.update.bulk', (data: any) => {
       this.eventEmit.emitAsync('clan.update.bulk', data);
