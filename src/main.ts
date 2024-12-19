@@ -26,16 +26,16 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // Bắt đầu consumer xử lý hàng đợi
-  const redisConsumer = app.get(RedisConsumerService);
-  // Danh sách hàng chờ
-  const queues = [
-    'cancelPlaceBetQueue',
-    'processOrderQueue',
-    'sendNotificationQueue',
-  ];
+  // const redisConsumer = app.get(RedisConsumerService);
+  // // Danh sách hàng chờ
+  // const queues = [
+  //   'cancelPlaceBetQueue',
+  //   'processOrderQueue',
+  //   'sendNotificationQueue',
+  // ];
 
   // Khởi động xử lý nhiều hàng chờ
-  await redisConsumer.processAllQueues(queues);
+  // await redisConsumer.processAllQueues(queues);
   await app.listen(port);
 }
 bootstrap();

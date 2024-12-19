@@ -19,7 +19,7 @@ export class MiniGameController {
 
   constructor(
     private readonly miniGameService: MiniGameService,
-    private readonly redisProducer: RedisService,
+    // private readonly redisProducer: RedisService,
   ) {}
 
   private async getMutex(key: string): Promise<Mutex> {

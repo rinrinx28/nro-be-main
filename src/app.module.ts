@@ -41,7 +41,7 @@ import { GiftcodeModule } from './giftcode/giftcode.module';
     EventModule,
     NoCallModule,
     AdminModule2,
-    RedisModule,
+    // RedisModule,
     QueuesModule,
     GiftcodeModule,
   ],

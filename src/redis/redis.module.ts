@@ -5,22 +5,23 @@ import { RedisConsumerService } from './redis-consumer.service';
 import { MiniGameModule } from 'src/mini-game/mini-game.module';
 
 @Global()
-@Module({
-  imports: [MiniGameModule],
-  providers: [
-    {
-      provide: 'REDIS',
-      useFactory: () => {
-        return new Redis({
-          host: '154.26.133.248',
-          port: 6379,
-          // password: process.env.REDIS_PWD,
-        });
-      },
-    },
-    RedisService,
-    RedisConsumerService,
-  ],
-  exports: ['REDIS', RedisService, RedisConsumerService],
-})
+@Module({})
+// @Module({
+//   imports: [MiniGameModule],
+//   providers: [
+//     {
+//       provide: 'REDIS',
+//       useFactory: () => {
+//         return new Redis({
+//           host: '154.26.133.248',
+//           port: 6379,
+//           // password: process.env.REDIS_PWD,
+//         });
+//       },
+//     },
+//     RedisService,
+//     RedisConsumerService,
+//   ],
+//   exports: ['REDIS', RedisService, RedisConsumerService],
+// })
 export class RedisModule {}
