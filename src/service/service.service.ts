@@ -178,7 +178,8 @@ export class ServiceService {
         server,
       });
       this.logAndNotify(uid, type, amount, newService, sanitizedUser, clientId);
-      this.socketGateWayAuth.server.to(clientId).emit('service.create.re', {
+      this.eventEmit.emitAsync('notification.user.event', {
+        uid: uid,
         message: 'Bạn đã tạo thành công giao dịch',
       });
       // Send auto cancel service
@@ -189,7 +190,8 @@ export class ServiceService {
       this.logger.log(
         `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${err.message}`,
       );
-      this.socketGateWayAuth.server.to(clientId).emit('service.create.re', {
+      this.eventEmit.emitAsync('notification.user.event', {
+        uid: uid,
         message: err.message,
       });
     } finally {
