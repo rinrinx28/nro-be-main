@@ -7,20 +7,24 @@ import { CancelService, CreateService } from './dto/dto.service';
 import { SocketGateway } from 'src/socket/socket.gateway';
 import { Mutex } from 'async-mutex';
 import { Spam } from './schema/spam.schema';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import moment from 'moment';
 import { SocketGatewayAuth } from 'src/socket/socket.gateway.jwt';
+import { SocketCronService } from 'src/socket/socket.cron.service';
+import { Cron } from './schema/cron.schema';
 
 @Injectable()
 export class ServiceService {
   constructor(
     @InjectModel(Service.name)
     private readonly serviceModel: Model<Service>,
-    @InjectModel(Spam.name)
-    private readonly SpamModel: Model<Spam>,
+    @InjectModel(Cron.name)
+    private readonly cronModel: Model<Cron>,
     private readonly userService: UserService,
     private readonly socketGateWay: SocketGateway,
     private readonly socketGateWayAuth: SocketGatewayAuth,
+    private readonly socketCronService: SocketCronService,
+    private readonly eventEmit: EventEmitter2,
   ) {}
 
   private logger: Logger = new Logger('Service');
@@ -63,28 +67,13 @@ export class ServiceService {
     }
   }
 
-  private async handleWithdrawal(type: string, amount: number, user: any) {
-    const withdrawAmount = type === '0' ? amount * 37e6 : amount;
-    const activeName = type === '0' ? 'w_rgold' : 'w_gold';
-
-    await this.createUserActive(
-      user._id.toString(),
-      user.money,
-      activeName,
-      withdrawAmount,
-    );
-    user.money -= withdrawAmount;
-    user.meta.limitTrade -= withdrawAmount;
-    user.meta.trade += withdrawAmount;
-  }
-
   private async createUserActive(
     uid: string,
     currentMoney: number,
     name: string,
     withdrawAmount: number = 0,
   ) {
-    const newMoney = currentMoney + withdrawAmount;
+    const newMoney = currentMoney - withdrawAmount;
     await this.userService.createUserActive({
       uid,
       active: {
@@ -95,13 +84,6 @@ export class ServiceService {
         amount: withdrawAmount,
       },
     });
-  }
-
-  private scheduleAutoCancel(serviceId: string, timeout: number) {
-    const autoCancel = setTimeout(async () => {
-      await this.handlerCancelLocal(serviceId);
-    }, timeout);
-    this.addCancel(serviceId, autoCancel);
   }
 
   private logAndNotify(
@@ -117,53 +99,6 @@ export class ServiceService {
     );
     this.socketGateWay.server.emit('service.update', service.toObject());
     this.socketGateWay.server.emit('user.update', user);
-    this.socketGateWayAuth.server.to(clientId).emit('service.cancel.re', {
-      message: 'Bạn đã tạo giao dịch thành công',
-    });
-  }
-
-  private processRefund(targetService: any, targetUser: any): number {
-    const { money, meta } = targetUser;
-    const { type, amount } = targetService;
-    let refundAmount = 0;
-
-    if (type === '0' || type === '1') {
-      refundAmount = this.calculateRefund(type, amount);
-
-      // Cập nhật số dư và meta người dùng
-      targetUser.money += refundAmount;
-      targetUser.meta = {
-        ...meta,
-        limitTrade: meta.limitTrade + refundAmount,
-        trade: meta.trade - refundAmount,
-      };
-
-      // Ghi log giao dịch hoàn tiền
-      this.userService.createUserActive({
-        uid: targetUser._id.toString(),
-        active: {
-          name: type === '0' ? 'cancel_w_rgold' : 'cancel_w_gold',
-          m_current: money,
-          m_new: money + refundAmount,
-          status: '1',
-          amount: amount,
-        },
-      });
-    } else if (type === '2' || type === '3') {
-      // Ghi log hủy giao dịch nạp
-      this.userService.createUserActive({
-        uid: targetUser._id.toString(),
-        active: {
-          name: type === '2' ? 'cancel_d_rgold' : 'cancel_d_gold',
-          m_current: money,
-          m_new: money,
-          status: '1',
-          amount: amount,
-        },
-      });
-    }
-
-    return refundAmount;
   }
 
   @OnEvent('service.create', { async: true })
@@ -210,13 +145,24 @@ export class ServiceService {
       }
 
       if (type === '0' || type === '1') {
-        await this.handleWithdrawal(type, amount, user);
+        const withdrawAmount = type === '0' ? amount * 37e6 : amount;
+        const activeName = type === '0' ? 'w_rgold' : 'w_gold';
+
+        await this.createUserActive(
+          user._id.toString(),
+          user.money,
+          activeName,
+          withdrawAmount,
+        );
+        user.money -= withdrawAmount;
+        user.meta.limitTrade -= withdrawAmount;
+        user.meta.trade += withdrawAmount;
       } else if (type === '2' || type === '3') {
         await this.createUserActive(
           uid,
           user.money,
           type === '2' ? 'd_rgold' : 'd_gold',
-          amount,
+          0,
         );
       }
 
@@ -231,78 +177,19 @@ export class ServiceService {
         type,
         server,
       });
-
-      this.scheduleAutoCancel(newService.id, 600e3); // 10 minutes
       this.logAndNotify(uid, type, amount, newService, sanitizedUser, clientId);
+      this.socketGateWayAuth.server.to(clientId).emit('service.create.re', {
+        message: 'Bạn đã tạo thành công giao dịch',
+      });
+      // Send auto cancel service
+      this.socketCronService.sendMessageToServer('service.auto.create', {
+        serviceId: newService.id,
+      });
     } catch (err: any) {
       this.logger.log(
         `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${err.message}`,
       );
       this.socketGateWayAuth.server.to(clientId).emit('service.create.re', {
-        message: err.message,
-      });
-    } finally {
-      release();
-    }
-  }
-
-  @OnEvent('service.cancel', { async: true })
-  async handlerUpdate(payload: CancelService) {
-    const { serviceId, uid, clientId = '' } = payload;
-    const parameter = `${uid}.update.service`;
-
-    // Tạo hoặc tái sử dụng mutex cho người dùng
-    if (!this.mutexMap.has(parameter)) {
-      this.mutexMap.set(parameter, new Mutex());
-    }
-
-    const mutex = this.mutexMap.get(parameter);
-    const release = await mutex.acquire();
-
-    try {
-      // Xác thực giao dịch và người dùng
-      const { service: targetService, user: targetUser } =
-        await this.validateServiceAndUser(serviceId, uid);
-
-      if (targetService.isEnd) {
-        throw new Error('Giao dịch đã kết thúc');
-      }
-
-      // Hoàn tiền nếu cần
-      const refundAmount = this.processRefund(targetService, targetUser);
-
-      // Cập nhật trạng thái giao dịch
-      targetService.isEnd = true;
-      targetService.status = '1';
-      if (refundAmount > 0) {
-        targetService.revice = refundAmount;
-      }
-
-      // Loại bỏ giao dịch tự hủy (nếu có)
-      this.removeCancel(targetService.id);
-
-      // Lưu thông tin
-      targetUser.markModified('meta');
-      await Promise.all([targetUser.save(), targetService.save()]);
-
-      // Gửi dữ liệu cập nhật
-      const sanitizedUser = this.sanitizeUser(targetUser);
-      this.socketGateWay.server.emit(
-        'service.update',
-        targetService.toObject(),
-      );
-      this.socketGateWay.server.emit('user.update', sanitizedUser);
-
-      this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
-      this.socketGateWayAuth.server.to(clientId).emit('service.cancel.re', {
-        message: 'Bạn đã hủy giao dịch thành công',
-      });
-    } catch (err: any) {
-      this.logger.error(
-        `Error Service Cancel: UID:${uid} - ServiceId:${serviceId}`,
-        err.stack,
-      );
-      this.socketGateWayAuth.server.to(clientId).emit('service.cancel.re', {
         message: err.message,
       });
     } finally {
@@ -325,129 +212,37 @@ export class ServiceService {
 
     try {
       // Xác thực giao dịch và người dùng
-      const { service: targetService, user: targetUser } =
+      const { service: targetService } =
         await this.validateServiceAndUserClient(serviceId, uid);
 
       if (targetService.isEnd) {
         throw new Error('Giao dịch đã kết thúc');
       }
 
-      // Hoàn tiền nếu cần
-      const refundAmount = this.processRefund(targetService, targetUser);
-
-      // Cập nhật trạng thái giao dịch
-      targetService.isEnd = true;
-      targetService.status = '1';
-      if (refundAmount > 0) {
-        targetService.revice = refundAmount;
+      // Chặn gửi yêu cầu hủy giao dịch trong vòng 20 giây
+      const cronJob = await this.cronModel.findOne({ serviceId: serviceId });
+      if (cronJob) {
+        let current = moment().unix();
+        let update_time = moment(`${cronJob.cancelTime}`).unix();
+        let timeDiff = current - update_time;
+        if (timeDiff < 20) {
+          throw new Error(
+            `Giao dịch của bạn tạm khóa, xin vui lòng chờ sau ${timeDiff} giây`,
+          );
+        }
       }
 
-      // Loại bỏ giao dịch tự hủy (nếu có)
-      this.removeCancel(targetService.id);
-
-      // Lưu thông tin
-      targetUser.markModified('meta');
-      await Promise.all([targetUser.save(), targetService.save()]);
-
-      // Gửi dữ liệu cập nhật
-      const sanitizedUser = this.sanitizeUser(targetUser);
-      this.socketGateWay.server.emit(
-        'service.update',
-        targetService.toObject(),
+      // Send msg cancel service
+      this.socketCronService.sendMessageToServer(
+        'service.auto.cancel',
+        targetService.id,
       );
-      this.socketGateWay.server.emit('user.update', sanitizedUser);
-
       this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
     } catch (err: any) {
-      this.logger.error(
-        `Error Service Cancel: UID:${uid} - ServiceId:${serviceId}`,
-        err.stack,
-      );
-    } finally {
-      release();
-    }
-  }
-
-  async handlerCancelLocal(serviceId: string) {
-    const parameter = `${serviceId}.cancel.service.local`;
-
-    if (!this.mutexMap.has(parameter)) {
-      this.mutexMap.set(parameter, new Mutex());
-    }
-
-    const mutex = this.mutexMap.get(parameter);
-    const release = await mutex.acquire();
-
-    try {
-      const target_s = await this.serviceModel.findById(serviceId);
-      if (!target_s) throw new Error('Service not found');
-
-      const uid = target_s.uid.toString();
-      const target_u = await this.userService.findUserOption({ _id: uid });
-      if (!target_u) throw new Error('User not found');
-
-      if (target_s.isEnd) throw new Error('Service already ended');
-
-      this.removeCancel(serviceId);
-
-      target_s.isEnd = true;
-      target_s.status = '1';
-
-      const { type, amount } = target_s;
-
-      if (type === '0' || type === '1') {
-        const refundAmount = type === '0' ? amount * 1e6 * 37 : amount;
-        const refundName = type === '0' ? 'cancel_w_rgold' : 'cancel_w_gold';
-
-        await this.userService.createUserActive({
-          uid: target_u._id.toString(),
-          active: {
-            name: refundName,
-            m_current: target_u.money,
-            m_new: target_u.money + refundAmount,
-            status: '1',
-          },
-        });
-
-        target_u.money += refundAmount;
-        target_u.meta = {
-          ...target_u.meta,
-          limitTrade: target_u.meta.limitTrade + refundAmount,
-          trade: target_u.meta.trade - refundAmount,
-        };
-        target_s.revice = refundAmount;
-      } else if (type === '2' || type === '3') {
-        const activeName = type === '2' ? 'cancel_d_rgold' : 'cancel_d_gold';
-        await this.userService.createUserActive({
-          uid,
-          active: {
-            name: activeName,
-            m_current: target_u.money,
-            m_new: target_u.money,
-            status: '1',
-          },
-        });
-      }
-
-      target_u.markModified('meta');
-      await target_u.save();
-
-      const { pwd_h, ...res_user } = target_u.toObject();
-      await target_s.save();
-
-      this.logger.log(
-        `Auto Cancel Service: UID:${uid} - ServiceId: ${serviceId}`,
-      );
-
-      try {
-        this.socketGateWay.server.emit('service.update', target_s.toObject());
-        this.socketGateWay.server.emit('user.update', res_user);
-      } catch (socketError) {
-        this.logger.warn(`Socket emission failed: ${socketError.message}`);
-      }
-    } catch (err: any) {
-      this.logger.error(`Cancel Service Error: ${err.message}`, err.stack);
-      this.removeCancel(serviceId);
+      this.eventEmit.emitAsync('notification.user.event', {
+        uid: uid,
+        message: err.message,
+      });
     } finally {
       release();
     }
@@ -495,31 +290,29 @@ export class ServiceService {
   //TODO ———————————————[Zone Auto Cancel Service]———————————————
   async addCancel(serviceId: string, timeOutId: any) {
     try {
-      this.mapService.set(serviceId, timeOutId);
-      this.logger.log('Add New Service Auto');
-      return;
+      // this.mapService.set(serviceId, timeOutId);
+      // this.logger.log('Add New Service Auto');
+      // return;
     } catch (err: any) {}
   }
 
   @OnEvent('remove.autocancel', { async: true })
   async removeCancel(serviceId: string) {
     try {
-      if (!this.mapService.has(serviceId)) {
-        this.logger.log(`Service ID ${serviceId} not found in mapService.`);
-        return;
-      }
-
-      let auto = this.mapService.get(serviceId);
-
-      if (auto) {
-        clearTimeout(auto);
-        this.mapService.delete(serviceId);
-        this.logger.log(`Remove Service ${serviceId} is success`);
-      } else {
-        this.logger.log(`No timeout found for Service ID ${serviceId}.`);
-      }
+      // if (!this.mapService.has(serviceId)) {
+      //   this.logger.log(`Service ID ${serviceId} not found in mapService.`);
+      //   return;
+      // }
+      // let auto = this.mapService.get(serviceId);
+      // if (auto) {
+      //   clearTimeout(auto);
+      //   this.mapService.delete(serviceId);
+      //   this.logger.log(`Remove Service ${serviceId} is success`);
+      // } else {
+      //   this.logger.log(`No timeout found for Service ID ${serviceId}.`);
+      // }
     } catch (err: any) {
-      this.logger.log('Err Remove Service Auto: ', err.message);
+      // this.logger.log('Err Remove Service Auto: ', err.message);
     }
   }
 
@@ -743,5 +536,10 @@ export class ServiceService {
       this.logger.error('Error fetching services:', err);
       return [];
     }
+  }
+
+  //TODO ———————————————[Time Controller]———————————————
+  addSeconds(date: Date, seconds: number): Date {
+    return new Date(date.getTime() + seconds * 1000);
   }
 }

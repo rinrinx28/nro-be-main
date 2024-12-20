@@ -22,7 +22,7 @@ export class SocketClientService implements OnModuleInit, OnModuleDestroy {
 
     // Listen for connection event
     this.socket.on('connect', () => {
-      console.log('Connected to Socket.IO server');
+      console.log('Connected to Socket Client server');
     });
 
     // Listen for messages from the server

@@ -636,4 +636,20 @@ export class EventService {
       this.logger.error(`Error in daily VIP check: ${error.message}`);
     }
   }
+
+  //TODO ———————————————[Socket Cron]———————————————
+  @OnEvent('service.update.event', { async: true })
+  async handleServiceUpdateEvent(payload: any) {
+    this.socketGateway.server.emit('service.update', payload);
+  }
+
+  @OnEvent('user.update.event', { async: true })
+  async handleUserUpdateEvent(payload: any) {
+    this.socketGateway.server.emit('user.update', payload);
+  }
+
+  @OnEvent('notification.user.event', { async: true })
+  async handleNotificationUserEvent(payload: any) {
+    this.socketGateway.server.emit('notification.user', payload);
+  }
 }

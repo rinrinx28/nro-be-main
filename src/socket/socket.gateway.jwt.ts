@@ -65,7 +65,7 @@ export class SocketGatewayAuth
     @ConnectedSocket() client: Socket,
   ) {
     data.clientId = client.id;
-    this.eventEmit.emitAsync('service.cancel', data);
+    this.eventEmit.emitAsync('service.cancel.client', data);
   }
 
   @UseGuards(JwtWsGuard)
