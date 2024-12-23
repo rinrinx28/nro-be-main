@@ -652,4 +652,28 @@ export class EventService {
   async handleNotificationUserEvent(payload: any) {
     this.socketGateway.server.emit('notification.user', payload);
   }
+
+  @OnEvent('auto.rank.info', { async: true })
+  async handlerAutoRankInfo() {
+    try {
+      const rankClans = await this.clanModel
+        .find()
+        .sort({ score: -1 })
+        .limit(5);
+      const users = await this.UserModel.find()
+        .sort({ 'meta.totalTrade': -1 })
+        .limit(7);
+      const res_users = users.map((u) => {
+        const { name, meta, _id } = u.toObject();
+        const { totalTrade, avatar } = meta;
+        return { name, meta: { totalTrade, avatar }, _id };
+      });
+      this.socketGateway.server.emit('auto.rank.info', {
+        clans: rankClans,
+        users: res_users,
+      });
+    } catch (err: any) {
+      this.logger.log(`[Auto Rank Info] ${err.message}`);
+    }
+  }
 }

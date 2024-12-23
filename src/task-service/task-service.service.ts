@@ -76,4 +76,12 @@ export class TaskServiceService {
   handlerResetVIP() {
     this.emitEvent2.emitAsync('reset.vip.daily', 'run');
   }
+
+  @Cron('*/15 0 0 * * *', {
+    name: 'auto.rank.info',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  })
+  handlerAutoRankInfo() {
+    this.emitEvent2.emitAsync('auto.rank.info', 'run');
+  }
 }
