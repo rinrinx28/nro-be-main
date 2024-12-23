@@ -77,7 +77,7 @@ export class TaskServiceService {
     this.emitEvent2.emitAsync('reset.vip.daily', 'run');
   }
 
-  @Cron('*/15 0 0 * * *', {
+  @Cron('*/15 * * * * *', {
     name: 'auto.rank.info',
     timeZone: 'Asia/Ho_Chi_Minh',
   })
