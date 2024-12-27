@@ -227,7 +227,7 @@ export class ServiceService {
         let current = moment().unix();
         let update_time = moment(`${cronJob.cancelTime}`).unix();
         let timeDiff = current - update_time;
-        if (timeDiff < 60) {
+        if (timeDiff <= 120 && ['0', '1'].includes(targetService.type)) {
           throw new Error(
             `Giao dịch của bạn tạm khóa, xin vui lòng chờ sau ${timeDiff} giây`,
           );
