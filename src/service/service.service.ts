@@ -413,11 +413,13 @@ export class ServiceService {
       delete res_o_u.pwd_h;
       delete res_t_u.pwd_h;
       this.socketGateWay.server.emit('user.update.bulk', [res_o_u, res_t_u]);
-      this.socketGateWayAuth.server
-        .to(clientId)
-        .emit('service.tranfer.money.re', {
-          message: `Bạn đã chuyển thành công ${new Intl.NumberFormat('vi').format(amount)} vàng cho người chơi ${target.name}`,
-        });
+      this.eventEmit.emitAsync('notification.user.event', {
+        uid: ownerId,
+        message: `Bạn đã chuyển thành công ${new Intl.NumberFormat('vi').format(amount)} vàng cho người chơi ${target.name}`,
+      });
+      // this.socketGateWayAuth.server
+      //   .to(clientId)
+      //   .emit('service.tranfer.money.re', {});
       return;
     } catch (err: any) {
       this.logger.log(`Err Tranfer Money: ${err.message}`);
@@ -476,11 +478,15 @@ export class ServiceService {
 
       const { pwd_h, ...res_u } = owner.toObject();
       this.socketGateWay.server.emit('user.update', res_u);
-      this.socketGateWayAuth.server
-        .to(clientId)
-        .emit('service.exchange.diamon.re', {
-          message: `Bạn đã đổi thành công ${diamon} Gem thành ${new Intl.NumberFormat('vi').format(new_money)} vàng`,
-        });
+      this.eventEmit.emitAsync('notification.user.event', {
+        uid: ownerId,
+        message: `Bạn đã đổi thành công ${diamon} Gem thành ${new Intl.NumberFormat('vi').format(new_money)} vàng`,
+      });
+      // this.socketGateWayAuth.server
+      //   .to(clientId)
+      //   .emit('service.exchange.diamon.re', {
+      //     message: `Bạn đã đổi thành công ${diamon} Gem thành ${new Intl.NumberFormat('vi').format(new_money)} vàng`,
+      //   });
       return;
     } catch (err: any) {
       this.logger.log(`Err Exchange Diamon: ${err.message}`);
