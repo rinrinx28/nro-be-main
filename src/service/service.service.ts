@@ -323,8 +323,8 @@ export class ServiceService {
   async tranferMoney(payload: {
     targetId: string;
     amount: number;
-    server: string;
-    ownerId: string;
+    ownerId?: string;
+    uid: string;
     clientId?: string;
   }) {
     const parameter = `${payload.ownerId}.tranferMoney`; // Value will be lock
@@ -336,7 +336,7 @@ export class ServiceService {
 
     const mutex = this.mutexMap.get(parameter);
     const release = await mutex.acquire();
-    const { amount, ownerId, server, targetId, clientId } = payload;
+    const { amount, ownerId, targetId, clientId } = payload;
     try {
       const e_shop = await this.userService.findConfigWithName('e_shop');
       const owner = await this.userService.findUserOption({ _id: ownerId });
@@ -344,9 +344,10 @@ export class ServiceService {
 
       const target = await this.userService.findUserOption({
         _id: targetId,
-        server: server,
+        server: owner.server,
       });
-      if (!target) throw new Error('Người dùng không tồn tại');
+      if (!target)
+        throw new Error(`Người nhận không tồn tại ở máy chủ ${owner.server}`);
 
       if (owner.money - amount < 1)
         throw new Error('Số dư tối thiểu còn lại là 1 vàng');
@@ -367,6 +368,7 @@ export class ServiceService {
             name: 'fee_tranfer',
             m_current: owner.money,
             m_new: owner.money - fee,
+            amount: amount,
           },
         });
         owner.money -= fee;
@@ -381,6 +383,7 @@ export class ServiceService {
           toId: targetId,
           to_meta: target.meta,
           to_name: target.name,
+          amount: amount,
         },
       });
 
@@ -393,6 +396,7 @@ export class ServiceService {
           fromId: ownerId,
           from_meta: owner.meta,
           from_name: owner.name,
+          amount: amount,
         },
       });
       // Update user;
@@ -462,6 +466,7 @@ export class ServiceService {
           m_new: new_money,
           d_current: owner.diamon,
           d_new: owner.diamon - diamon,
+          diamon: diamon,
         },
       });
 
