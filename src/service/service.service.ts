@@ -343,7 +343,7 @@ export class ServiceService {
       if (!owner) throw new Error('Người dùng không tồn tại');
 
       const target = await this.userService.findUserOption({
-        _id: targetId,
+        name: targetId,
         server: owner.server,
       });
       if (!target)
@@ -354,7 +354,7 @@ export class ServiceService {
       if (owner.meta.vip < 1) throw new Error('Bạn phải đạt tối thiểu VIP 1');
       if (amount > owner.meta.limitTrade)
         throw new Error(
-          'Bạn không thể rút quá hạn mức hôm nay, xin vui lòng tham gia Minigame để tăng điểm',
+          'Bạn không thể chuyển quá hạn mức hôm nay, xin vui lòng tham gia Minigame để tăng điểm',
         );
       if (owner?.meta?.rewardDayCollected?.length > 0) {
         let fee_tranfer = e_shop.option.fee_tranfer;
@@ -380,7 +380,7 @@ export class ServiceService {
           name: 'tranfer_f',
           m_current: owner.money,
           m_new: owner.money - amount,
-          toId: targetId,
+          toId: target.id,
           to_meta: target.meta,
           to_name: target.name,
           amount: amount,
@@ -388,7 +388,7 @@ export class ServiceService {
       });
 
       await this.userService.createUserActive({
-        uid: targetId,
+        uid: target.id,
         active: {
           name: 'tranfer_t',
           m_current: target.money,
