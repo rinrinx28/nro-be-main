@@ -191,7 +191,7 @@ export class ServiceService {
 
       // Send logs discord
       await this.sendLogsServices(`
-          [Tạo${type === '0' ? 'Rút Thỏi vàng' : type === '1' ? 'Rút vàng' : type === '2' ? 'Nạp thỏi vàng' : 'Nạp vàng'}] ServiceId: ${newService.id} - Tên hiển thị: ${user.username} - UserId: ${user.id} - Tên nhân vật: ${playerName} - Số thỏi/vàng: ${amount} - Server: ${newService.server}
+          [Tạo ${type === '0' ? 'Rút Thỏi vàng' : type === '1' ? 'Rút vàng' : type === '2' ? 'Nạp thỏi vàng' : 'Nạp vàng'}] ServiceId: ${newService.id} - Tên hiển thị: ${user.username} - UserId: ${user.id} - Tên nhân vật: ${playerName} - Số thỏi/vàng: ${amount} - Server: ${newService.server}
         `);
     } catch (err: any) {
       this.logger.log(
