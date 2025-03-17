@@ -272,10 +272,10 @@ export class MiniGameService {
           \n- UserId: ${user.id} 
           \n- Tên hiển thị: ${user.name} 
           \n- Cược: ${userBet.place} 
-          \n- Số tiền cược: ${userBet.amount} 
+          \n- Số tiền cược: ${this.stringToNumberFormat(userBet.amount)} 
           \n- Server: ${userBet.server} 
-          \n- Số tiền trước: ${res_u.money + amount} 
-          \n- Số tiền hiện tại: ${res_u.money} 
+          \n- Số tiền trước: ${this.stringToNumberFormat(res_u.money + amount)} 
+          \n- Số tiền hiện tại: ${this.stringToNumberFormat(res_u.money)} 
           \n- Thời gian: ${new Date().toLocaleString()}`,
         );
       } else {
@@ -286,10 +286,10 @@ export class MiniGameService {
           \n- UserId: ${user.id} 
           \n- Tên hiển thị: ${user.name} 
           \n- Cược: ${userBet.place} 
-          \n- Số tiền cược: ${userBet.amount} 
+          \n- Số tiền cược: ${this.stringToNumberFormat(userBet.amount)} 
           \n- Server: ${userBet.server} 
-          \n- Số tiền trước: ${res_u.money + amount} 
-          \n- Số tiền hiện tại: ${res_u.money} 
+          \n- Số tiền trước: ${this.stringToNumberFormat(res_u.money + amount)} 
+          \n- Số tiền hiện tại: ${this.stringToNumberFormat(res_u.money)} 
           \n- Thời gian: ${new Date().toLocaleString()}`,
         );
       }
@@ -490,10 +490,10 @@ export class MiniGameService {
         \n- UserId: ${user.id} 
         \n- Tên hiển thị: ${user.name} 
         \n- Cược: ${userBet.place} 
-        \n- Số tiền cược: ${userBet.amount} 
+        \n- Số tiền cược: ${this.stringToNumberFormat(userBet.amount)} 
         \n- Server: ${userBet.server} 
-        \n- Số tiền trước: ${res_u.money - refund_money} 
-        \n- Số tiền hiện tại: ${res_u.money} 
+        \n- Số tiền trước: ${this.stringToNumberFormat(res_u.money - refund_money)} 
+        \n- Số tiền hiện tại: ${this.stringToNumberFormat(res_u.money)} 
         \n- Thời gian: ${new Date().toLocaleString()}`,
       );
       return;
@@ -597,6 +597,10 @@ export class MiniGameService {
       this.logger.log('Đã xảy ra lỗi với Logs Bet Place Discord');
       return true;
     }
+  }
+
+  stringToNumberFormat(value: any) {
+    return new Intl.NumberFormat('vi').format(Number(value));
   }
 }
 

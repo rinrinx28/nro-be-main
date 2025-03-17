@@ -202,7 +202,7 @@ export class ServiceService {
           \n- Tên hiển thị: ${user.name} 
           \n- UserId: ${user.id} 
           \n- Tên nhân vật: ${playerName} 
-          \n- Số thỏi/vàng: ${amount} 
+          \n- Số thỏi/vàng: ${this.stringToNumberFormat(amount)} 
           \n- Server: ${newService.server}
         `);
     } catch (err: any) {
@@ -274,7 +274,7 @@ export class ServiceService {
         \n- UserId: ${user.id} 
         \n- Tên nhân vật: ${targetService.playerName} 
         \n- ID Nhân vật: ${targetService.playerId} 
-        \n- Số thỏi/vàng: ${targetService.amount} 
+        \n- Số thỏi/vàng: ${this.stringToNumberFormat(targetService.amount)} 
         \n- Server: ${targetService.server}
       `);
     } catch (err: any) {
@@ -604,5 +604,9 @@ export class ServiceService {
       this.logger.log('Đã xảy ra lỗi với Logs Nap/rut Discord');
       return true;
     }
+  }
+
+  stringToNumberFormat(value: any) {
+    return new Intl.NumberFormat('vi').format(Number(value));
   }
 }
