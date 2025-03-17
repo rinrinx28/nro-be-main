@@ -270,7 +270,7 @@ export class MiniGameService {
           `[Đặt cược lớn] UserBetId: ${userBet.id} 
           \n- BetId: ${betId} 
           \n- UserId: ${user.id} 
-          \n- Tên hiển thị: ${user.username} 
+          \n- Tên hiển thị: ${user.name} 
           \n- Cược: ${userBet.place} 
           \n- Số tiền cược: ${userBet.amount} 
           \n- Server: ${userBet.server} 
@@ -284,7 +284,7 @@ export class MiniGameService {
           `[Đặt cược lớn] UserBetId: ${userBet.id} 
           \n- BetId: ${betId} 
           \n- UserId: ${user.id} 
-          \n- Tên hiển thị: ${user.username} 
+          \n- Tên hiển thị: ${user.name} 
           \n- Cược: ${userBet.place} 
           \n- Số tiền cược: ${userBet.amount} 
           \n- Server: ${userBet.server} 
@@ -488,7 +488,7 @@ export class MiniGameService {
         `[Huỷ cược] UserBetId: ${userBet.id} 
         \n- BetId: ${userBet.betId} 
         \n- UserId: ${user.id} 
-        \n- Tên hiển thị: ${user.username} 
+        \n- Tên hiển thị: ${user.name} 
         \n- Cược: ${userBet.place} 
         \n- Số tiền cược: ${userBet.amount} 
         \n- Server: ${userBet.server} 
