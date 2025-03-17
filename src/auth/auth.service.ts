@@ -118,7 +118,9 @@ export class AuthService {
         );
       }
       await this.sendLogsAuthDiscord(
-        `[Đăng nhập] UserId: ${uid} - Finger: ${hash} - Thời gian: ${new Date().toLocaleString()}`,
+        `[Đăng nhập] UserId: ${uid} 
+        \n- Finger: ${hash} 
+        \n- Thời gian: ${new Date().toLocaleString()}`,
       );
       return true;
     } catch (err: any) {
@@ -201,7 +203,9 @@ export class AuthService {
         },
       });
       await this.sendLogsAuthDiscord(
-        `[Đăng ký] UserId: ${user.id} - Finger: ${hash} - Thời gian: ${new Date().toLocaleString()}`,
+        `[Đăng ký] UserId: ${user.id} 
+        \n- Finger: ${hash} 
+        \n- Thời gian: ${new Date().toLocaleString()}`,
       );
       return { message: 'Bạn đã đăng ký thành công', code: 0 };
     } catch (err: any) {

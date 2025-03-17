@@ -191,7 +191,12 @@ export class ServiceService {
 
       // Send logs discord
       await this.sendLogsServices(`
-          [Tạo ${type === '0' ? 'Rút Thỏi vàng' : type === '1' ? 'Rút vàng' : type === '2' ? 'Nạp thỏi vàng' : 'Nạp vàng'}] ServiceId: ${newService.id} - Tên hiển thị: ${user.username} - UserId: ${user.id} - Tên nhân vật: ${playerName} - Số thỏi/vàng: ${amount} - Server: ${newService.server}
+          [Tạo ${type === '0' ? 'Rút Thỏi vàng' : type === '1' ? 'Rút vàng' : type === '2' ? 'Nạp thỏi vàng' : 'Nạp vàng'}] ServiceId: ${newService.id} 
+          \n- Tên hiển thị: ${user.username} 
+          \n- UserId: ${user.id} 
+          \n- Tên nhân vật: ${playerName} 
+          \n- Số thỏi/vàng: ${amount} 
+          \n- Server: ${newService.server}
         `);
     } catch (err: any) {
       this.logger.log(
@@ -250,7 +255,13 @@ export class ServiceService {
       const user = await this.userService.findUserOption({ _id: uid });
       // Send logs discord
       await this.sendLogsServices(`
-        [Huỷ ${targetService.type === '0' ? 'Rút Thỏi vàng' : targetService.type === '1' ? 'Rút vàng' : targetService.type === '2' ? 'Nạp thỏi vàng' : 'Nạp vàng'}] ServiceId: ${targetService.id} - Tên hiển thị: ${user.username} - UserId: ${user.id} - Tên nhân vật: ${targetService.playerName} - ID Nhân vật: ${targetService.playerId} - Số thỏi/vàng: ${targetService.amount} - Server: ${targetService.server}
+        [Huỷ ${targetService.type === '0' ? 'Rút Thỏi vàng' : targetService.type === '1' ? 'Rút vàng' : targetService.type === '2' ? 'Nạp thỏi vàng' : 'Nạp vàng'}] ServiceId: ${targetService.id} 
+        \n- Tên hiển thị: ${user.username} 
+        \n- UserId: ${user.id} 
+        \n- Tên nhân vật: ${targetService.playerName} 
+        \n- ID Nhân vật: ${targetService.playerId} 
+        \n- Số thỏi/vàng: ${targetService.amount} 
+        \n- Server: ${targetService.server}
       `);
     } catch (err: any) {
       this.eventEmit.emitAsync('notification.user.event', {

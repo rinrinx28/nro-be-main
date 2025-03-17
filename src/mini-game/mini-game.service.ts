@@ -267,12 +267,30 @@ export class MiniGameService {
 
         // Send logs discord
         await this.sendLogsBetPlace(
-          `[Đặt cược lớn] UserBetId: ${userBet.id} - BetId: ${betId} - Cược: ${userBet.place} - Số tiền cược: ${userBet.amount} - Server: ${userBet.server} - Số tiền trước: ${res_u.money + amount} - Số tiền hiện tại: ${res_u.money} - Thời gian: ${new Date().toLocaleString()}`,
+          `[Đặt cược lớn] UserBetId: ${userBet.id} 
+          \n- BetId: ${betId} 
+          \n- UserId: ${user.id} 
+          \n- Tên hiển thị: ${user.username} 
+          \n- Cược: ${userBet.place} 
+          \n- Số tiền cược: ${userBet.amount} 
+          \n- Server: ${userBet.server} 
+          \n- Số tiền trước: ${res_u.money + amount} 
+          \n- Số tiền hiện tại: ${res_u.money} 
+          \n- Thời gian: ${new Date().toLocaleString()}`,
         );
       } else {
         // Send logs discord
         await this.sendLogsBetPlace(
-          `[Đặt cược] UserBetId: ${userBet.id} - BetId: ${betId} - Cược: ${userBet.place} - Số tiền cược: ${userBet.amount} - Server: ${userBet.server} - Số tiền trước: ${res_u.money + amount} - Số tiền hiện tại: ${res_u.money} - Thời gian: ${new Date().toLocaleString()}`,
+          `[Đặt cược lớn] UserBetId: ${userBet.id} 
+          \n- BetId: ${betId} 
+          \n- UserId: ${user.id} 
+          \n- Tên hiển thị: ${user.username} 
+          \n- Cược: ${userBet.place} 
+          \n- Số tiền cược: ${userBet.amount} 
+          \n- Server: ${userBet.server} 
+          \n- Số tiền trước: ${res_u.money + amount} 
+          \n- Số tiền hiện tại: ${res_u.money} 
+          \n- Thời gian: ${new Date().toLocaleString()}`,
         );
       }
       // TODO Send to sv for reSend all client
@@ -467,7 +485,16 @@ export class MiniGameService {
 
       // Send logs discord
       await this.sendLogsBetPlace(
-        `[Huỷ cược] UserBetId: ${userBet.id} - BetId: ${userBet.betId} - Cược: ${userBet.place} - Số tiền cược: ${userBet.amount} - Server: ${userBet.server} - Số tiền trước: ${res_u.money - refund_money} - Số tiền hiện tại: ${res_u.money} - Thời gian: ${new Date().toLocaleString()}`,
+        `[Huỷ cược] UserBetId: ${userBet.id} 
+        \n- BetId: ${userBet.betId} 
+        \n- UserId: ${user.id} 
+        \n- Tên hiển thị: ${user.username} 
+        \n- Cược: ${userBet.place} 
+        \n- Số tiền cược: ${userBet.amount} 
+        \n- Server: ${userBet.server} 
+        \n- Số tiền trước: ${res_u.money - refund_money} 
+        \n- Số tiền hiện tại: ${res_u.money} 
+        \n- Thời gian: ${new Date().toLocaleString()}`,
       );
       return;
     } catch (err: any) {
