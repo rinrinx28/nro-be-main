@@ -256,7 +256,7 @@ export class MiniGameService {
       a_game.markModified('resultUser');
       await a_game.save();
 
-      if (amount > 5e8) {
+      if (amount >= 5e8) {
         let res_s = this.show_res(place);
         const msg = await this.messageService.createMSG({
           uid: 'local',
