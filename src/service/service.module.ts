@@ -7,6 +7,7 @@ import { UserModule } from 'src/user/user.module';
 import { SocketClientModule } from 'src/socket/socket.module';
 import { Spam, SpamSchema } from './schema/spam.schema';
 import { Cron, CronSchema } from './schema/cron.schema';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { Cron, CronSchema } from './schema/cron.schema';
     ]),
     UserModule,
     SocketClientModule,
+    HttpModule,
   ],
   controllers: [ServiceController],
   providers: [ServiceService],

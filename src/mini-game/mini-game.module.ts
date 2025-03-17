@@ -9,6 +9,7 @@ import { SocketClientModule } from 'src/socket/socket.module';
 import { MessageModule } from 'src/message/message.module';
 import { Jackpot, JackpotSchema } from './schema/jackpot';
 import { RedisModule } from 'src/redis/redis.module';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { RedisModule } from 'src/redis/redis.module';
     UserModule,
     SocketClientModule,
     MessageModule,
+    HttpModule,
   ],
 
   controllers: [MiniGameController],

@@ -12,6 +12,7 @@ import moment from 'moment';
 import { SocketGatewayAuth } from 'src/socket/socket.gateway.jwt';
 import { SocketCronService } from 'src/socket/socket.cron.service';
 import { Cron } from './schema/cron.schema';
+import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class ServiceService {
@@ -25,6 +26,7 @@ export class ServiceService {
     private readonly socketGateWayAuth: SocketGatewayAuth,
     private readonly socketCronService: SocketCronService,
     private readonly eventEmit: EventEmitter2,
+    private readonly httpService: HttpService,
   ) {}
 
   private logger: Logger = new Logger('Service');
@@ -186,6 +188,11 @@ export class ServiceService {
       this.socketCronService.sendMessageToServer('service.auto.create', {
         serviceId: newService.id,
       });
+
+      // Send logs discord
+      await this.sendLogsServices(`
+          [Tạo${type === '0' ? 'Rút Thỏi vàng' : type === '1' ? 'Rút vàng' : type === '2' ? 'Nạp thỏi vàng' : 'Nạp vàng'}] ServiceId: ${newService.id} - Tên hiển thị: ${user.username} - UserId: ${user.id} - Tên nhân vật: ${playerName} - Số thỏi/vàng: ${amount} - Server: ${newService.server}
+        `);
     } catch (err: any) {
       this.logger.log(
         `Err Service Create: UID:${uid} - Type: ${type} - Amount: ${amount} - Msg: ${err.message}`,
@@ -240,6 +247,11 @@ export class ServiceService {
         targetService.id,
       );
       this.logger.log(`Cancel Service: UID:${uid} - ServiceId: ${serviceId}`);
+      const user = await this.userService.findUserOption({ _id: uid });
+      // Send logs discord
+      await this.sendLogsServices(`
+        [Huỷ ${targetService.type === '0' ? 'Rút Thỏi vàng' : targetService.type === '1' ? 'Rút vàng' : targetService.type === '2' ? 'Nạp thỏi vàng' : 'Nạp vàng'}] ServiceId: ${targetService.id} - Tên hiển thị: ${user.username} - UserId: ${user.id} - Tên nhân vật: ${targetService.playerName} - ID Nhân vật: ${targetService.playerId} - Số thỏi/vàng: ${targetService.amount} - Server: ${targetService.server}
+      `);
     } catch (err: any) {
       this.eventEmit.emitAsync('notification.user.event', {
         uid: uid,
@@ -554,5 +566,18 @@ export class ServiceService {
   //TODO ———————————————[Time Controller]———————————————
   addSeconds(date: Date, seconds: number): Date {
     return new Date(date.getTime() + seconds * 1000);
+  }
+
+  async sendLogsServices(msg: string) {
+    try {
+      await this.httpService.axiosRef.post(process.env.LOGS_SERVICE_DS_WB, {
+        content: '```\n' + `${msg}\n` + '```',
+        avatar_url: 'https://www.nrogame.me/image/icon.png',
+      });
+      return true;
+    } catch (err: any) {
+      this.logger.log('Đã xảy ra lỗi với Logs Nap/rut Discord');
+      return true;
+    }
   }
 }

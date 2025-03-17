@@ -13,6 +13,7 @@ import { Jackpot } from './schema/jackpot';
 import { Mutex } from 'async-mutex';
 import { OnEvent } from '@nestjs/event-emitter';
 import { SocketGatewayAuth } from 'src/socket/socket.gateway.jwt';
+import { HttpService } from '@nestjs/axios';
 @Injectable()
 export class MiniGameService {
   constructor(
@@ -25,6 +26,7 @@ export class MiniGameService {
     private socketGateway: SocketGateway,
     private readonly socketGateWayAuth: SocketGatewayAuth,
     private messageService: MessageService,
+    private readonly httpService: HttpService,
   ) {}
 
   private logger: Logger = new Logger('MiniGame');
@@ -262,6 +264,16 @@ export class MiniGameService {
           content: `Người chơi ${user.name} đang chơi lớn ${new Intl.NumberFormat('vi').format(amount)} vàng vào ${res_s}`,
         });
         this.socketGateway.server.emit('message.re', msg);
+
+        // Send logs discord
+        await this.sendLogsBetPlace(
+          `[Đặt cược lớn] UserBetId: ${userBet.id} - BetId: ${betId} - Cược: ${userBet.place} - Server: ${userBet.server} - Số tiền trước: ${res_u.money + amount} - Số tiền hiện tại: ${res_u.money} - Thời gian: ${new Date().toLocaleString()}`,
+        );
+      } else {
+        // Send logs discord
+        await this.sendLogsBetPlace(
+          `[Đặt cược] UserBetId: ${userBet.id} - BetId: ${betId} - Cược: ${userBet.place} - Server: ${userBet.server} - Số tiền trước: ${res_u.money + amount} - Số tiền hiện tại: ${res_u.money} - Thời gian: ${new Date().toLocaleString()}`,
+        );
       }
       // TODO Send to sv for reSend all client
       this.socketClientService.sendMessageToServer(
@@ -452,6 +464,11 @@ export class MiniGameService {
       this.socketGateWayAuth.server.to(clientId).emit('minigame.cancel.re', {
         message: 'Bạn đã hủy cược thành công',
       });
+
+      // Send logs discord
+      await this.sendLogsBetPlace(
+        `[Huỷ cược] UserBetId: ${userBet.id} - BetId: ${userBet.betId} - Cược: ${userBet.place} - Server: ${userBet.server} - Số tiền trước: ${res_u.money - refund_money} - Số tiền hiện tại: ${res_u.money} - Thời gian: ${new Date().toLocaleString()}`,
+      );
       return;
     } catch (err: any) {
       this.logger.log(
@@ -540,6 +557,19 @@ export class MiniGameService {
       return 'Lẻ Xỉu';
     }
     return res;
+  }
+
+  async sendLogsBetPlace(msg: string) {
+    try {
+      await this.httpService.axiosRef.post(process.env.LOGS_BET_PLACE_DS_WB, {
+        content: '```\n' + `${msg}\n` + '```',
+        avatar_url: 'https://www.nrogame.me/image/icon.png',
+      });
+      return true;
+    } catch (err: any) {
+      this.logger.log('Đã xảy ra lỗi với Logs Bet Place Discord');
+      return true;
+    }
   }
 }
 

@@ -37,7 +37,7 @@ export class AuthController {
 
     if (!isValidFingerprint) {
       throw new UnauthorizedException(
-        'Bạn chỉ có thể sở hữu tối đa 2 Tài khoản trên một địa chỉ',
+        'Bạn chỉ có thể sở hữu tối đa 13 Tài khoản trên một địa chỉ',
       );
     }
 

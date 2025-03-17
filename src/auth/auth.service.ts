@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -13,6 +14,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { FingerPrint } from './schema/finger.schema';
 import { Mutex } from 'async-mutex';
+import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class AuthService {
@@ -21,9 +23,11 @@ export class AuthService {
     private readonly FingerPrintModel: Model<FingerPrint>,
     private userService: UserService,
     private jwtService: JwtService,
+    private readonly httpService: HttpService,
   ) {}
 
   private readonly mutexMap = new Map<string, Mutex>();
+  private logger: Logger = new Logger(AuthService.name);
 
   async validateUser(
     username: string,
@@ -113,6 +117,9 @@ export class AuthService {
           { new: true, upsert: true },
         );
       }
+      await this.sendLogsAuthDiscord(
+        `[Đăng nhập] UserId: ${uid} - Finger: ${hash} - Thời gian: ${new Date().toLocaleString()}`,
+      );
       return true;
     } catch (err: any) {
       throw new Error(err.message);
@@ -193,6 +200,9 @@ export class AuthService {
           ip_address: 'updating',
         },
       });
+      await this.sendLogsAuthDiscord(
+        `[Đăng ký] UserId: ${user.id} - Finger: ${hash} - Thời gian: ${new Date().toLocaleString()}`,
+      );
       return { message: 'Bạn đã đăng ký thành công', code: 0 };
     } catch (err: any) {
       throw new HttpException({ message: err.message }, HttpStatus.BAD_REQUEST);
@@ -251,6 +261,19 @@ export class AuthService {
       );
     } catch (err: any) {
       console.log(err.message);
+    }
+  }
+
+  async sendLogsAuthDiscord(msg: string) {
+    try {
+      await this.httpService.axiosRef.post(process.env.LOGS_AUTH_DS_WB, {
+        content: '```\n' + `${msg}\n` + '```',
+        avatar_url: 'https://www.nrogame.me/image/icon.png',
+      });
+      return true;
+    } catch (err: any) {
+      this.logger.log('Đã xảy ra lỗi với Logs Auth Discord');
+      return true;
     }
   }
 }
