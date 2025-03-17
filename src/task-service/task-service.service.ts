@@ -5,7 +5,7 @@ import { Cron } from '@nestjs/schedule';
 @Injectable()
 export class TaskServiceService {
   constructor(private emitEvent2: EventEmitter2) {}
-  @Cron('0 50 23 * * *', {
+  @Cron('0 50 20 * * *', {
     name: 'turn.of.mini.game',
     timeZone: 'Asia/Ho_Chi_Minh',
   })
@@ -13,7 +13,7 @@ export class TaskServiceService {
     this.emitEvent2.emitAsync('turn.of.mini.game', 'run');
   }
 
-  @Cron('0 0 6 * * *', {
+  @Cron('0 5 12 * * *', {
     name: 'turn.on.mini.game',
     timeZone: 'Asia/Ho_Chi_Minh',
   })
